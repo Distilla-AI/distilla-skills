@@ -1,7 +1,7 @@
 ---
 name: "sell-side-view"
 description: Single-company deep-dive memo on the sell-side view of ONE named stock, built from recent research reports — a full broker coverage table (rating, target, estimates per broker), narrative shifts, where analysts disagree, what the Street may be missing, and per-broker valuation methodology. Use when the user asks about one specific company for a sell-side consensus read, analyst view summary, that company's recent broker upgrades/downgrades, 'walk me through analyst coverage on X', or Street opinion on X. If several tickers are given, produce one full memo per company. Do NOT use for a multi-company, sector, region, theme or watchlist digest, or for any request that says 'sell-side brief', 'broker brief', 'research brief' or '/sell-side-brief' (use `sell-side-brief`).
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector and Python code execution; Distilla-only data mode (no web figures). Claude Code note: add context: fork to run in an isolated sub-agent."
+compatibility: "Requires the Distilla MCP connector and Python code execution; Distilla-only data mode (no web figures). Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 metadata:
   required_sections: Broker Coverage; Narrative Shifts; Where They Diverge; What the Street May Be Missing; Valuation Methodology
 ---

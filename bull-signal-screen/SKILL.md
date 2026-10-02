@@ -1,12 +1,12 @@
 ---
 name: "bull-signal-screen"
 description: Build a shortlist from the region, sectors and size the user asks for (e.g. large-cap "new economy" stocks — AI/semis, cloud/SaaS, internet platforms, EVs/clean energy, fintech, biotech — or any other sector), then run three independent bullish screens — technical momentum, social-media (X/Twitter) momentum, and recent insider open-market buying — and combine them into a ranked list of buy candidates with the evidence behind each. Uses Distilla MCP for the universe, prices, and insider events. Use this whenever the user asks for bullish signal screens, momentum plus insider-buying screens, stocks with converging buy signals, technical breakout screens across growth sectors, or "which stocks are showing the most bullish signals", even if they don't name all three legs. Do NOT use for a single-stock technical read (use technical-analysis).
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there; the three screens can run as parallel sub-agents."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools. Where the harness supports sub-agents, the three screens can run in parallel."
 ---
 
 # Bull Signal Screen
 
-**Platform:** Claude.ai (target). The three screens run in sequence in Claude.ai; in Claude Code they may run as sub-agents.
+**Platform:** Agent-agnostic. The three screens run in sequence by default; where the harness supports sub-agents, they may run as sub-agents.
 
 Shortlist → three independent screens → one combined score → top candidates with evidence.
 
@@ -157,7 +157,7 @@ X/Twitter data is **not in Distilla MCP today**. Follow the X / social discourse
 - Confirm whether each stock shows **fresh** momentum or attention: a strengthening or newly trending narrative in in-window posts — not stale or fading chatter — scored per the X-leg field note.
 - Capture concrete evidence: specific trending narratives, notable accounts or posts driving it, engagement data points, and the in-window post count.
 - Supporting signal: Distilla `standard_event` type `Key Opinion Leader Mention of Company` in the last 30 days, one grouped call for all names (deduped, rule 2.6). Cite it as "KOL mention (Distilla)", not as X data.
-- Every reachable name gets its X search before Step 3, with `web_search` — never `web_search_fast`, which ignores `site:`. An unsearched name is never scored 0; a run with an unsearched reachable name is partial: name them and resume, never rank with them open.
+- Every reachable name gets its X search before Step 3, with `web_search` — never a fast or snippet-only search variant (e.g. `web_search_fast`) that ignores `site:`. An unsearched name is never scored 0; a run with an unsearched reachable name is partial: name them and resume, never rank with them open.
 - **Keep only confirmed Yes rows.**
 
 **Output:** table — ticker, momentum = Yes, narrative summary, notable accounts/posts, engagement or sentiment evidence (Trend Velocity).

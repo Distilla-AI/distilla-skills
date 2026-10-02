@@ -1,7 +1,7 @@
 ---
 name: "cycle-positioning"
 description: 'Locates where a company and its sector sit in their cycles, anchored to a driver-matched trough and comparable cycle, and assesses what is and isn''t priced in. Trigger: cycle analysis, where a company or sector is in its cycle, whether the stock is ahead of or behind the fundamental cycle. Buy-side analyst voice. Do NOT use for capex discipline (capex-cycle), utilization levels alone (capacity-utilization), or diagnosing a multiple re-rating (valuation-compression-recovery).'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 ---
 
 **Common failure** — phase classified without demand/supply/mgmt-commentary evidence; stereotyped cycle length instead of empirical measurement; sales YoY as cycle indicator; comparable cycle matched by recency rather than driver and amplitude; trough off the lowest cited datapoint; Investment Signal without a directional call; market pricing gap omitted.

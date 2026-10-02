@@ -1,7 +1,7 @@
 ---
 name: "initial-screen"
 description: "DEFAULT skill for any open-ended question about ONE named company or bare ticker. ALWAYS use for 'How's [X] looking/doing?', 'Thoughts on [X]?', 'What's the latest on [X]?', 'Rundown / first look / quick take on [X]', 'Is [X] worth a look?', 'Check in on [X]' - even when a quick price, news or momentum read seems enough, and even if the user prefers concise output (keep the write-up short, still run the framework). First-pass fundamental screen, any sector or region: rates Red Flags, Management, Competitive Trajectory, Financial Health and Valuation vs history and peers, sector-branched; verdict Strong Candidate / Monitor / Decline plus Further Diligence. Do NOT use when the ask names a narrower deliverable: chart or technical read (technical-analysis), sentiment (sentiment-read), accounting deep dive (financial-statement-review), intrinsic value (dcf-modeling), trade idea with catalyst and R/R (long-short-ideas), 2-pager or management questions (company-brief), full IC Buy/Sell/Hold (fundamental-guru)."
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 metadata:
   version: "2.0"
 ---

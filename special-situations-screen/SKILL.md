@@ -1,12 +1,12 @@
 ---
 name: "special-situations-screen"
 description: Screen a market for live, near-term special situations across four categories — M&A/arbitrage, spin-offs/breakups, activist/restructuring, and distressed/capital-structure events — then dedupe and rank them by probability-weighted expected return. Uses Distilla MCP (standard_event, ku_cell, stock_price, financial_data_point, valuation_multiple) as the primary source. Use this whenever the user asks for special situations, event-driven or catalyst-driven ideas, merger arbitrage, tender offers, spin-off or breakup ideas, activist targets, restructurings, distressed names, recapitalizations, or rights issues across a universe, even if they don't say "special situations". Do NOT use for a deep dive on one company.
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there; the four scans can run as parallel sub-agents."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools. Where the harness supports sub-agents, the four scans can run in parallel."
 ---
 
 # Special Situations Screen
 
-**Platform:** Claude.ai (target). The four scans run in sequence in Claude.ai; in Claude Code they may run as sub-agents.
+**Platform:** Agent-agnostic. The four scans run in sequence by default; where the harness supports sub-agents, they may run as sub-agents.
 
 Find **active, unresolved** special situations in a universe, estimate upside, then rank survivors by **probability-weighted expected return**.
 

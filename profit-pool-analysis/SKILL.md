@@ -1,7 +1,7 @@
 ---
 name: "profit-pool-analysis"
 description: 'Generates an investor-grade value chain analysis covering industry structure, profit pool mapping, upstream/downstream power dynamics, and supply chain risks. Trigger: value chain analysis, supply chain analysis, profit pool, upstream/downstream dynamics, industry structure, where does margin sit, or "which part of the value chain should I own". Do NOT use for one company''s channel mix (distribution-channels) or its supplier dependency risk (supply-chain-resilience).'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 metadata:
   required_sections: Supply Chain Verdict; Value Chain Map; Upstream Analysis|Upstream; Peer Tier Analysis|Horizontal; Downstream Analysis|Downstream; Profit Pool Migration; Tier Cycle Sensitivity; Supply Chain Risks; Near-Term Catalysts|Catalysts; Monitoring Dashboard
 ---

@@ -1,7 +1,7 @@
 ---
 name: "technical-analysis"
 description: Technical read on a stock from price-and-volume data — trend, momentum, participation, volatility, and chart patterns, closing with a directional read by horizon. Use when the user asks for a technical read, chart analysis, a trade setup, or entry/exit levels on a stock.
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 metadata:
   version: "2.0"
 ---

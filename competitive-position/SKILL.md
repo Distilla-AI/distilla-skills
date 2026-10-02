@@ -1,7 +1,7 @@
 ---
 name: "competitive-position"
 description: 'Analyzes a company''s competitive position — moat assessment, rival dynamics, Porter''s Five Forces, strategic vulnerabilities, and competitive trajectory. Trigger: competitive analysis, competitive position, moat assessment, how does [company] compare to rivals, is [company]''s competitive advantage sustainable, or Porter''s Five Forces for [company]. Do NOT use for a sector-wide memo (industry-analysis), value-chain profit pools (profit-pool-analysis), metric-by-metric peer tables (peer-benchmarking), or brand equity (consumer-brand-equity).'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 metadata:
   required_sections: Competitive Position Verdict; Market Position; Moat Analysis; Head-to-Head Competitor Analysis|Head-to-Head; Competitive Forces|Porter's Five Forces; Strategic Vulnerabilities; Competitive Trajectory; Near-Term Catalysts|Catalysts; Monitoring Dashboard
 ---

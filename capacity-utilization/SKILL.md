@@ -1,7 +1,7 @@
 ---
 name: "capacity-utilization"
 description: Analyzes a company's capacity utilization against its own historical range, segment-matched peers, and the sector supply/demand balance, then assesses the pricing power and cycle signal it implies. Works both for companies that disclose a utilization rate and for those that do not (e.g., TSMC, Samsung, Intel), using clearly labeled derived loading ratios. Use when asked about capacity utilization, operating rates, fab loading, utilization cycles, supply/demand tightness, whether a company is near full capacity or has excess capacity, or what utilization implies for pricing and margins. Do NOT use for capex discipline and ROIIC (capex-cycle), where a company sits in its broader demand cycle (cycle-positioning), or cost structure (manufacturing-cost-structure).
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 metadata:
   version: "3.1"
 ---

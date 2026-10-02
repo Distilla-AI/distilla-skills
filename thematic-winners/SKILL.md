@@ -1,12 +1,12 @@
 ---
 name: "thematic-winners"
 description: Long-only thematic idea generation. Maps a theme's value chain into Direct and Indirect beneficiary tiers, derives a Favor/Avoid checklist from historical analogs, runs two independent screens (one per logic path) over a region and size band, tallies them into a ranked shortlist, and writes Long/Pass recommendations with catalysts for the top names. Uses Distilla MCP (screen_drivers, screen_earnings, ku_cell, product, stock_price, standard_event, earnings_calendar, public library). Use this whenever the user asks who benefits from a theme, thematic winners or beneficiaries, value-chain plays, "picks and shovels", long ideas for a trend (e.g. humanoid robotics, AI power, GLP-1, defense, nuclear), or which stocks to own for a theme, even if they don't say "value chain" or "historical analog". Do NOT use for short ideas or for explaining past sector price moves (use sector-price-driver-patterns).
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there; paired analyses can run as parallel sub-agents."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools. Where the harness supports sub-agents, paired analyses can run in parallel."
 ---
 
 # Thematic Winners
 
-**Platform:** Claude.ai (target).
+**Platform:** Agent-agnostic.
 
 Theme → two independent sets of screening criteria → two independent screens → tally → Long/Pass on the top names.
 
@@ -36,7 +36,7 @@ Step 4 — Recommendations → Top Ideas table, write-ups, catalyst calendar
 
 Then, in the same text reply below the block, ask one question — in plain text, never through the tappable-options tool, which shows only the question and hides the rundown — together with any missing-input question: stop for review after Step 3 (tally), or run to the end. Then stop or continue as answered. A request that already states the choice ("run to the end", "stop after the tally") is the answer: print the rundown and ask nothing. No other approval stop.
 
-**Execution:** Steps 1 and 2 each contain two independent analyses. Run each pair in sequence in Claude.ai, keeping each analysis's logic separate (parallel sub-agents in Claude Code).
+**Execution:** Steps 1 and 2 each contain two independent analyses. Run each pair in sequence by default, keeping each analysis's logic separate (or as parallel sub-agents where the harness supports them).
 
 ## Data-source fallback
 

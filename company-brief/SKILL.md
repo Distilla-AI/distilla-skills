@@ -1,7 +1,7 @@
 ---
 name: "company-brief"
 description: 'Generates a ≤2-page investor briefing on one named company plus 5–7 sharp questions for management — snapshot, key drivers, financial scorecard (annual, recent quarters, valuation vs. its own 3-year range), recent developments, bull/bear. Use when the user asks for a "2-pager", "company brief", "meeting prep", "briefing" or questions for a management meeting on a named company, including ADRs, dual listings and foreign filers; a "tear sheet" request goes here only when it is for a meeting or asks for management questions. Objective and factual — no buy/sell calls, ratings or price targets. Do NOT use for a first-pass screen with a verdict (initial-screen), a full financial-statement diagnosis (financial-statement-review), intrinsic value (dcf-modeling), long/short pitches with catalysts (long-short-ideas), or a broker-coverage memo (sell-side-view).'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 metadata:
   version: "3.2"
 ---

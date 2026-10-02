@@ -3,7 +3,7 @@
 Read before the first Distilla call. These are the quirks that caused errors in earlier runs.
 
 ## Setup
-- Distilla tools may be deferred. Load them with `tool_search` (e.g. query "Distilla queryable entities price move") before calling.
+- Distilla tools may be deferred. If the harness defers tool loading, load them with its tool-search mechanism (e.g. query "Distilla queryable entities price move") before calling.
 - Call `list_queryable_entities`, then `describe_queryable_entities` for any entity whose fields you haven't confirmed in this conversation. Don't guess field names. `describe` accepts a comma-separated list, so describe several at once.
 - Entities useful for this skill: `company`, `company_drivers`, `sector`, `product`, `product_category`, `ticker`, `stock_price`, `price_explanation`, `earnings_calendar`, `standard_event`, `ku_cell`, `executive_summary`.
 

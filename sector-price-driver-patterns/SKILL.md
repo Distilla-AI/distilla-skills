@@ -1,7 +1,7 @@
 ---
 name: "sector-price-driver-patterns"
 description: 'Explain what drove stock prices across a sector, theme, or value chain over a past period and find the tested pattern separating winners from losers: which layers led or lagged, how much of the move was macro versus company-specific, synchronized sell-offs and their triggers, beats that were sold, and where fundamentals and price diverged. Historical analysis only: no trade ideas, setups or long/short calls. Distilla MCP first; web search only for macro triggers. Use whenever the user asks why a group of stocks moved, what drove a sector or theme, "why did the [theme] value chain move over the last N months", whether there is a pattern across a value chain, or which layer/sub-industry led or lagged (e.g. AI infrastructure, GLP-1, defense, uranium, EV supply chain, China internet), even without the words "value chain". Do NOT use when the user asks for today''s setup, trade ideas or positioning (use sector-price-driver-review), for a single-stock question, or for general market commentary with no sector focus.'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there unchanged."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 ---
 
 # Sector Price-Driver Patterns

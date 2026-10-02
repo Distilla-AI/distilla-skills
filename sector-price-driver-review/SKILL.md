@@ -1,7 +1,7 @@
 ---
 name: "sector-price-driver-review"
 description: 'Explain what drove stock prices across a sector, theme, or value chain over a recent period, find the pattern separating winners from losers, and turn it into today''s setup: layer verdicts, catalysts within the user''s trading horizon, and up to 3 long and 3 avoid/short ideas. Distilla MCP first; web search only for macro and breaking news. Use ONLY when the user asks for the forward-looking part for a sector or theme: "today''s setup", "trade ideas", "setups", "what''s the trade now", "how to position", "where''s the opportunity" after its recent moves (e.g. AI infrastructure, GLP-1, defense, uranium, EV supply chain, China internet) — including a question that asks both why it moved and what to do now. Do NOT use when the user only asks why a sector or value chain moved, what drove it, or which layer led or lagged, with no setup or ideas requested (use sector-price-driver-patterns); for a single-stock question; or for general market commentary with no sector focus.'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there unchanged."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 ---
 
 # Sector Price-Driver Review

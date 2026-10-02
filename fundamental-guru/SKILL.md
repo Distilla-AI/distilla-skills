@@ -1,12 +1,12 @@
 ---
 name: "fundamental-guru"
 description: Full single-company investment committee process — first-pass screen, sector-routed deep-dive modules (brand, channel, growth, cost, supply chain, technology, profit pool, capex cycle, cycle, utilization, ROE, moat), a two-round IC debate between Buffett-, Cathie Wood-, and Peter Lynch-style personas, a CIO Buy/Sell/Hold verdict with price ranges, and a five-question forward research plan. Uses Distilla MCP (ku_cell, company_drivers, standard_event, stock_price, financial_data_point, valuation_multiple, public library). Use this whenever the user asks for an investment committee review, IC memo, deep fundamental analysis, "run the full process" on a stock, a multi-perspective debate on a company, or a Buy/Sell/Hold verdict with a research plan, even if they just give a ticker and say "full workup". Do NOT use for a quick first look only (use initial-screen).
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there; module steps can run as parallel sub-agents."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools. Where the harness supports sub-agents, module steps can run in parallel."
 ---
 
 # Fundamental Guru
 
-**Platform:** Claude.ai (target). Parallel steps run in sequence in Claude.ai; in Claude Code they may run as sub-agents.
+**Platform:** Agent-agnostic. Parallel steps run in sequence by default; where the harness supports sub-agents, they may run as sub-agents.
 
 One company → first-pass screen + valuation context → sector-routed deep dive → IC debate (2 rounds) → CIO verdict → research plan.
 

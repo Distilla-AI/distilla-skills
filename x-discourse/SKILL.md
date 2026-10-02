@@ -1,7 +1,7 @@
 ---
 name: "x-discourse"
 description: Synthesizes X discourse on a stock or company to surface investor sentiment, narrative shifts, and price-relevant signals from social media. Use when the user asks what X/social media is saying about a stock, or wants to understand retail and momentum-driven narrative around a company. Do NOT use for multi-source sentiment across news, research and price (sentiment-read).
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 metadata:
   version: "2.0"
 ---

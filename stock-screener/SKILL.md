@@ -1,7 +1,7 @@
 ---
 name: "stock-screener"
 description: Cross-universe / multi-company screening — filters a declared universe down to a ranked, evidence-backed shortlist. Produces a universe declaration, count contract, ranked table with per-row evidence, and caveats block. Use when the user asks "Which companies …", "Screen for …", "Rank by …", "Top N …", "Companies with X …" — any cross-sectional filter or ranking question returning a *list* of issuers **without a directional trade thesis**, including which stocks were upgraded or downgraded (rating-event screens). Do NOT use for single-company analysis (`initial-screen`, `company-brief`), market-recap summaries (`daily-brief`), historical macro pattern questions about past market behavior ("which sectors historically outperformed after X"), or actionable long/short trade recommendations carrying thesis + catalyst + invalidation + R/R — use `long-short-ideas` for that last case.
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
+compatibility: "Requires the Distilla MCP connector, web search / page fetch tools (`web_search` / `web_fetch` or the harness's equivalents), and Python code execution. Agent-agnostic: runs on any agent harness (Claude, ChatGPT, etc.) that provides these tools."
 metadata:
   version: "2.0"
   accepts_enrichment: []
