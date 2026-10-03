@@ -1,0 +1,17 @@
+interface:
+  display_name: cycle positioning
+  short_description: 'Locates where a company and its sector sit in their cycles,
+    anchored to a driver-matched trough and comparable cycle, and assesses what is
+    and isn''''t priced in. Trigger: cycle analysis, where a company or sector is
+    in its cycle, whether the stock is ahead of or behind the fundamental cycle. Buy-side
+    analyst voice. Do NOT use for capex discipline (capex-cycle), utilization levels
+    alone (capacity-utilization), or diagnosing a multiple re-rating (valuation-compression-recovery).'
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

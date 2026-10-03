@@ -1,0 +1,17 @@
+interface:
+  display_name: profit pool analysis
+  short_description: 'Generates an investor-grade value chain analysis covering industry
+    structure, profit pool mapping, upstream/downstream power dynamics, and supply
+    chain risks. Trigger: value chain analysis, supply chain analysis, profit pool,
+    upstream/downstream dynamics, industry structure, where does margin sit, or "which
+    part of the value chain should I own". Do NOT use for one company''''s channel
+    mix (distribution-channels) or its supplier dependency risk (supply-chain-resilience).'
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

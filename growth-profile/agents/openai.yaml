@@ -1,0 +1,22 @@
+interface:
+  display_name: growth profile
+  short_description: 'Builds a complete picture of a company''''s (or 2–5 peers'''')
+    growth profile across three horizons — Historical (5-year backward), Current (latest
+    4–8 quarters), and Forward (3-year) — focused on revenue and the primary sub-sector
+    operational KPI (SaaS NRR, retail SSS, healthcare pipeline, industrial orders,
+    etc.). Decomposes every growth claim by volume × price × mix × organic vs. M&A
+    × geographic. Tiered verdict (Compounder / Accelerating / Cyclical-growth / Decelerating
+    / Mature / Stalling) with Investor Action Signal. Trigger: growth profile, growth
+    analysis, growth potential, growth runway, what''''s driving [company]''''s growth,
+    "is [company]''''s growth sustainable", "compare growth profile of [Co A] vs [Co
+    B]". Do NOT use for consensus revision trends (earnings-revisions) or a full financial-statement
+    diagnosis (financial-statement-review).'
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

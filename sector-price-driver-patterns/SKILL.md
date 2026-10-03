@@ -1,8 +1,9 @@
 ---
 name: "sector-price-driver-patterns"
 description: 'Explain what drove stock prices across a sector, theme, or value chain over a past period and find the tested pattern separating winners from losers: which layers led or lagged, how much of the move was macro versus company-specific, synchronized sell-offs and their triggers, beats that were sold, and where fundamentals and price diverged. Historical analysis only: no trade ideas, setups or long/short calls. Distilla MCP first; web search only for macro triggers. Use whenever the user asks why a group of stocks moved, what drove a sector or theme, "why did the [theme] value chain move over the last N months", whether there is a pattern across a value chain, or which layer/sub-industry led or lagged (e.g. AI infrastructure, GLP-1, defense, uranium, EV supply chain, China internet), even without the words "value chain". Do NOT use when the user asks for today''s setup, trade ideas or positioning (use sector-price-driver-review), for a single-stock question, or for general market commentary with no sector focus.'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there unchanged."
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.
 
 # Sector Price-Driver Patterns
 
@@ -22,9 +23,9 @@ Check the user's request for these parameters. Only ask about the ones that are 
 | **Their holdings / watchlist** | Optional | None |
 
 How to ask:
-- Use the `ask_user_input_v0` tool (tappable options) when available. Put at most 3 questions in one call, each with 2–4 short options. Prioritize: sector/theme first, then lookback window, then region.
+- Use the host's interactive question tool when available; otherwise ask in prose. Ask at most 3 questions at once, offering short options within the host's supported limits. Prioritize: sector/theme first, then lookback window, then region.
 - If only the sector/theme is missing and it's open-ended, ask in one short prose question instead, since options can't cover every sector. You can offer 3–4 example themes as options plus let them type their own.
-- Add a brief line before the tool call, e.g. "A few quick choices so the analysis covers the right window:".
+- Add a brief line before asking, e.g. "A few quick choices so the analysis covers the right window:".
 - End the turn after asking. Start research only after the user answers.
 - If everything required is already stated, skip Step 0 entirely and say nothing about it.
 - **Holdings / watchlist:** never assume a source. If the user mentions holdings or "my names" without listing them, ask for the tickers or where to find them (paste, upload, a list in this chat), then resolve them with `query_entity` on `company`.
@@ -41,7 +42,7 @@ Before starting research, restate the scope in one line, e.g. "**Scope:** AI inf
 
 Never call any other connector, even when one is connected.
 
-### Distilla data rules (shared block v25: 2.1, 2.2, 2.3, 2.6, 2.7, 2.8 · 3b)
+### Distilla data rules (shared block v26.1: 2.1, 2.2, 2.3, 2.6, 2.7, 2.8 · 3b)
 
 #### 2.1 Pre-flight checks (before any data step)
 
@@ -86,7 +87,7 @@ Never call any other connector, even when one is connected.
 |---|---|---|---|
 | Price, returns, volume | `stock_price` (`adjusted_close`, `volume`, `currency`; `change` is a decimal fraction) | None | Current quote only: Yahoo Finance. History: **None** — leave `--`. |
 | Market cap, EV | Rebuild per rule 2.3 | `stock_price.market_cap` / `enterprise_value` only if within 10% of the rebuild | **None** — rebuild or `--` |
-| FX rates | Not in Distilla MCP today | None (vendor `market_cap` ÷ local cap, rule 2.6, is a cross-check only, never an input) | **Latest date — Google Finance, tried first, before any other source or `--`:** `web_search` for `google.com/finance/quote/USD-{CCY}` (e.g. `USD-JPY`, `USD-KRW`, `USD-HKD`, `USD-CNY`, `USD-TWD`), then `web_fetch` the returned URL and read the rate and timestamp from the page — never the search snippet (it can be a stale crawl), and `web_fetch` refuses a typed URL. **Past date or month-end history:** Federal Reserve H.10 / FRED daily USD series (covers TWD, HKD, JPY, KRW, CNY) → ECB euro reference rates, crossed via EUR (no TWD); H.10 publishes weekly with a lag — check each series' latest observation; for dates after it, use ECB for that date. **Pair check:** `USD / JPY 157.2750` = JPY per USD → divide the local amount by it; a USD-per-local quote (`1 KRW = 0.00073785 USD`) is inverted first (1,355.3 KRW per USD). A rate that feeds a compared, ranked, valued or threshold-tested number is stated with pair, rate, source and timestamp (or date); only an illustrative conversion (a USD equivalent in prose, a floor cleared ≥2×) may use an approximate rate, written `≈ {rate}, as of {date}`. |
+| FX rates | Not in Distilla MCP today | None (vendor `market_cap` ÷ local cap, rule 2.6, is a cross-check only, never an input) | **Latest date — Google Finance, tried first, before any other source or `--`:** `web_search` for `google.com/finance/quote/USD-{CCY}` (e.g. `USD-JPY`, `USD-KRW`, `USD-HKD`, `USD-CNY`, `USD-TWD`), then `web_fetch` the returned URL and read the rate and timestamp from the page — never the search snippet (it can be a stale crawl), If the host requires a search-discovered URL before fetching, obtain it through search first. **Past date or month-end history:** Federal Reserve H.10 / FRED daily USD series (covers TWD, HKD, JPY, KRW, CNY) → ECB euro reference rates, crossed via EUR (no TWD); H.10 publishes weekly with a lag — check each series' latest observation; for dates after it, use ECB for that date. **Pair check:** `USD / JPY 157.2750` = JPY per USD → divide the local amount by it; a USD-per-local quote (`1 KRW = 0.00073785 USD`) is inverted first (1,355.3 KRW per USD). A rate that feeds a compared, ranked, valued or threshold-tested number is stated with pair, rate, source and timestamp (or date); only an illustrative conversion (a USD equivalent in prose, a floor cleared ≥2×) may use an approximate rate, written `≈ {rate}, as of {date}`. |
 | Large price moves | `price_explanation` (`date`, `price_move_percentage` — decimal, rule 2.6, `explanation`) | `standard_event` and `file` `News Article` on the same dates | Company press releases → major newswires; `web_fetch` before citing |
 | Ratings, target price | Broker notes: `get_library_document` `summary` (rating, TP, change old → new, date) of a note found by `search_public_library` `list`; consensus TP = **latest** `stock_price.sell_side_target_price` only | None — drop the item. `standard_event` (`Sell-side Rating Action`, `Sell-side Target Price Action`, `Sell-side coverage initiation`) is discovery only: it names brokers and dates to list again with `brokers=[…]` (at most five per call), never a rating, TP or TP trajectory; an event no note matches is left out, and a note it conflicts with wins | **None** |
 | Value-chain universe | `screen_drivers` (one full-scope call, `universe` = the screen code for the user's region — covered regions are the `company.hq_country` values at run time — or `["all"]`) → `get_screen_job` | `company_drivers`; `product`; product categories via `ku_cell` `groupProductCategory` (the `product` entity has no category field); `company.sector_id` → `sector` | **None** — the universe is Distilla-only; never add web-found or recalled names |

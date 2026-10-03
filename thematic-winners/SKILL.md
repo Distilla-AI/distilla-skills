@@ -1,12 +1,13 @@
 ---
 name: "thematic-winners"
 description: Long-only thematic idea generation. Maps a theme's value chain into Direct and Indirect beneficiary tiers, derives a Favor/Avoid checklist from historical analogs, runs two independent screens (one per logic path) over a region and size band, tallies them into a ranked shortlist, and writes Long/Pass recommendations with catalysts for the top names. Uses Distilla MCP (screen_drivers, screen_earnings, ku_cell, product, stock_price, standard_event, earnings_calendar, public library). Use this whenever the user asks who benefits from a theme, thematic winners or beneficiaries, value-chain plays, "picks and shovels", long ideas for a trend (e.g. humanoid robotics, AI power, GLP-1, defense, nuclear), or which stocks to own for a theme, even if they don't say "value chain" or "historical analog". Do NOT use for short ideas or for explaining past sector price moves (use sector-price-driver-patterns).
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there; paired analyses can run as parallel sub-agents."
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary. Run paired independent analyses sequentially by default; use parallel sub-agents only where supported, preserving the skill's dependencies and hand-offs.
 
 # Thematic Winners
 
-**Platform:** Claude.ai (target).
+**Platform:** Agent-agnostic.
 
 Theme → two independent sets of screening criteria → two independent screens → tally → Long/Pass on the top names.
 
@@ -34,9 +35,9 @@ Step 3 — Tally → ranked shortlist
 Step 4 — Recommendations → Top Ideas table, write-ups, catalyst calendar
 ```
 
-Then, in the same text reply below the block, ask one question — in plain text, never through the tappable-options tool, which shows only the question and hides the rundown — together with any missing-input question: stop for review after Step 3 (tally), or run to the end. Then stop or continue as answered. A request that already states the choice ("run to the end", "stop after the tally") is the answer: print the rundown and ask nothing. No other approval stop.
+Then, in the same text reply below the block, ask one question — in plain text, never through the tappable-options tool, so the rundown and review question remain together in the same visible reply — together with any missing-input question: stop for review after Step 3 (tally), or run to the end. Then stop or continue as answered. A request that already states the choice ("run to the end", "stop after the tally") is the answer: print the rundown and ask nothing. No other approval stop.
 
-**Execution:** Steps 1 and 2 each contain two independent analyses. Run each pair in sequence in Claude.ai, keeping each analysis's logic separate (parallel sub-agents in Claude Code).
+**Execution:** Steps 1 and 2 each contain two independent analyses. Run each pair in sequence by default, keeping each analysis's logic separate (or as parallel sub-agents where the harness supports them).
 
 ## Data-source fallback
 
@@ -48,7 +49,7 @@ Then, in the same text reply below the block, ask one question — in plain text
 
 Never call any other connector, even when one is connected.
 
-### Distilla data rules (shared block v25: 2.1, 2.2, 2.3, 2.6, 2.7, 2.8 · 3f, 3g, 3h)
+### Distilla data rules (shared block v26.1: 2.1, 2.2, 2.3, 2.6, 2.7, 2.8 · 3f, 3g, 3h)
 
 #### 2.1 Pre-flight checks (before any data step)
 
@@ -118,7 +119,7 @@ Never call any other connector, even when one is connected.
 | Interim financials, segments, OCF | `financial_data_point` (`T.duration = "quarter"`); segments: `ku_cell` `by_segment_financials`, `geographical_segments`; `standard_event.earnings_summary` (`type = "Earnings announcement"`) | `ku_cell`: `cash_flow_details`, `capital_expenditure` (difference YTD values), `gross_margin_trends`, `operating_margin_trends`, `net_margin_trends`, `working_capital`; `executive_summary` `recent_performance`; `file` `Composite Filing` | Same as Annual financials |
 | Price, returns, volume | `stock_price` (`adjusted_close`, `volume`, `currency`; `change` is a decimal fraction) | None | Current quote only: Yahoo Finance. History: **None** — leave `--`. |
 | Market cap, EV | Rebuild per rule 2.3 | `stock_price.market_cap` / `enterprise_value` only if within 10% of the rebuild | **None** — rebuild or `--` |
-| FX rates | Not in Distilla MCP today | None (vendor `market_cap` ÷ local cap, rule 2.6, is a cross-check only, never an input) | **Latest date — Google Finance, tried first, before any other source or `--`:** `web_search` for `google.com/finance/quote/USD-{CCY}` (e.g. `USD-JPY`, `USD-KRW`, `USD-HKD`, `USD-CNY`, `USD-TWD`), then `web_fetch` the returned URL and read the rate and timestamp from the page — never the search snippet (it can be a stale crawl), and `web_fetch` refuses a typed URL. **Past date or month-end history:** Federal Reserve H.10 / FRED daily USD series (covers TWD, HKD, JPY, KRW, CNY) → ECB euro reference rates, crossed via EUR (no TWD); H.10 publishes weekly with a lag — check each series' latest observation; for dates after it, use ECB for that date. **Pair check:** `USD / JPY 157.2750` = JPY per USD → divide the local amount by it; a USD-per-local quote (`1 KRW = 0.00073785 USD`) is inverted first (1,355.3 KRW per USD). A rate that feeds a compared, ranked, valued or threshold-tested number is stated with pair, rate, source and timestamp (or date); only an illustrative conversion (a USD equivalent in prose, a floor cleared ≥2×) may use an approximate rate, written `≈ {rate}, as of {date}`. |
+| FX rates | Not in Distilla MCP today | None (vendor `market_cap` ÷ local cap, rule 2.6, is a cross-check only, never an input) | **Latest date — Google Finance, tried first, before any other source or `--`:** `web_search` for `google.com/finance/quote/USD-{CCY}` (e.g. `USD-JPY`, `USD-KRW`, `USD-HKD`, `USD-CNY`, `USD-TWD`), then `web_fetch` the returned URL and read the rate and timestamp from the page — never the search snippet (it can be a stale crawl), If the host requires a search-discovered URL before fetching, obtain it through search first. **Past date or month-end history:** Federal Reserve H.10 / FRED daily USD series (covers TWD, HKD, JPY, KRW, CNY) → ECB euro reference rates, crossed via EUR (no TWD); H.10 publishes weekly with a lag — check each series' latest observation; for dates after it, use ECB for that date. **Pair check:** `USD / JPY 157.2750` = JPY per USD → divide the local amount by it; a USD-per-local quote (`1 KRW = 0.00073785 USD`) is inverted first (1,355.3 KRW per USD). A rate that feeds a compared, ranked, valued or threshold-tested number is stated with pair, rate, source and timestamp (or date); only an illustrative conversion (a USD equivalent in prose, a floor cleared ≥2×) may use an approximate rate, written `≈ {rate}, as of {date}`. |
 | Large price moves | `price_explanation` (`date`, `price_move_percentage` — decimal, rule 2.6, `explanation`) | `standard_event` and `file` `News Article` on the same dates | Company press releases → major newswires; `web_fetch` before citing |
 | Theme economics and value chain (Step 1A) | `search_public_library` (`doc_types = ["Research", "Podcast"]`, `mode = "synthesize"` — a theme is a topic query and `list` ignores `query`; `date_range = "90d"` first; retries change the `query` wording, still `synthesize`) | `ku_cell` `category_trends_enriched`, `category_size_and_growth_enriched`, `upstream_categories_enriched` for a matching `product_category` | Official filings (industry sections of 10-Ks and annual reports) → company IR (investor days) → one named industry source (e.g. IFR for robotics) |
 | Historical analog evidence (Step 1B) | `search_public_library` (Research, Podcast; `mode = "synthesize"`, `date_range = "1y"`, stated; retries change the `query` wording, still `synthesize`) | `stock_price` / `price_explanation` for analog-era names, if covered | Official filings from the analog period → company IR → named histories or industry sources. Price history: **None** |

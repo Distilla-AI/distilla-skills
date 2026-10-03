@@ -1,0 +1,22 @@
+interface:
+  display_name: technology position
+  short_description: 'Assesses a company''''s (or 2–5 peers'''') technology positioning
+    across six dimensions — technology stack and architecture, R&D investment quality,
+    product differentiation vs. peers, AI/automation adoption, technology obsolescence
+    risk, and patent/IP protection. Applies to both tech-native companies (software,
+    semis, biotech, internet) and tech-adopting traditional industries (banks, retail,
+    industrials, healthcare). Tiered verdict (Tech-leader / Competitive / Vulnerable
+    / Behind) with Investor Action Signal. Trigger: technology analysis, tech stack
+    assessment, R&D quality, product differentiation, AI/automation adoption, patent
+    protection, "how strong is [company]''''s technology position", "compare technology
+    of [Co A] vs [Co B]". Do NOT use for a broad moat and rival review (competitive-position)
+    or brand strength (consumer-brand-equity).'
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

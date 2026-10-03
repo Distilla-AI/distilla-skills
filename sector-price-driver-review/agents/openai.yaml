@@ -1,0 +1,24 @@
+interface:
+  display_name: sector price driver review
+  short_description: 'Explain what drove stock prices across a sector, theme, or value
+    chain over a recent period, find the pattern separating winners from losers, and
+    turn it into today''''s setup: layer verdicts, catalysts within the user''''s
+    trading horizon, and up to 3 long and 3 avoid/short ideas. Distilla MCP first;
+    web search only for macro and breaking news. Use ONLY when the user asks for the
+    forward-looking part for a sector or theme: "today''''s setup", "trade ideas",
+    "setups", "what''''s the trade now", "how to position", "where''''s the opportunity"
+    after its recent moves (e.g. AI infrastructure, GLP-1, defense, uranium, EV supply
+    chain, China internet) — including a question that asks both why it moved and
+    what to do now. Do NOT use when the user only asks why a sector or value chain
+    moved, what drove it, or which layer led or lagged, with no setup or ideas requested
+    (use sector-price-driver-patterns); for a single-stock question; or for general
+    market commentary with no sector focus.'
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

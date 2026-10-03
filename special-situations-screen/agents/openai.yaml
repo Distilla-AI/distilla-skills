@@ -1,0 +1,20 @@
+interface:
+  display_name: special situations screen
+  short_description: Screen a market for live, near-term special situations across
+    four categories — M&A/arbitrage, spin-offs/breakups, activist/restructuring, and
+    distressed/capital-structure events — then dedupe and rank them by probability-weighted
+    expected return. Uses Distilla MCP (standard_event, ku_cell, stock_price, financial_data_point,
+    valuation_multiple) as the primary source. Use this whenever the user asks for
+    special situations, event-driven or catalyst-driven ideas, merger arbitrage, tender
+    offers, spin-off or breakup ideas, activist targets, restructurings, distressed
+    names, recapitalizations, or rights issues across a universe, even if they don't
+    say "special situations". Do NOT use for a deep dive on one company.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

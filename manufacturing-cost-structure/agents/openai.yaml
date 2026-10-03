@@ -1,0 +1,20 @@
+interface:
+  display_name: manufacturing cost structure
+  short_description: 'Analyzes cost structure for manufacturers — materials/labor/overhead
+    breakdown, gross margin drivers, cost pass-through, efficiency trends, input cost
+    sensitivity, geographic positioning, and automation investment. Supports single-company
+    deep dive or 2–5 peer comparison, tailored by manufacturing sub-sector. Trigger:
+    manufacturing cost analysis, cost structure breakdown, gross margin drivers, cost
+    pass-through, manufacturing efficiency, automation investment, "how cost-competitive
+    is [company]", "compare cost structure of [Co A] vs [Co B]". Do NOT use for multi-period
+    trend analysis of financial metrics — use `financial-statement-review` for questions
+    about how revenue, margins, or earnings have trended over time.'
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

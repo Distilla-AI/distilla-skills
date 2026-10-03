@@ -1,0 +1,21 @@
+interface:
+  display_name: sell side view
+  short_description: Single-company deep-dive memo on the sell-side view of ONE named
+    stock, built from recent research reports — a full broker coverage table (rating,
+    target, estimates per broker), narrative shifts, where analysts disagree, what
+    the Street may be missing, and per-broker valuation methodology. Use when the
+    user asks about one specific company for a sell-side consensus read, analyst view
+    summary, that company's recent broker upgrades/downgrades, 'walk me through analyst
+    coverage on X', or Street opinion on X. If several tickers are given, produce
+    one full memo per company. Do NOT use for a multi-company, sector, region, theme
+    or watchlist digest, or for any request that says 'sell-side brief', 'broker brief',
+    'research brief' or '/sell-side-brief' (use `sell-side-brief`).
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

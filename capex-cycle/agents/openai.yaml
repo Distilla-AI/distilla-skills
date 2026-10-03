@@ -1,0 +1,22 @@
+interface:
+  display_name: capex cycle
+  short_description: 'Analyzes a company''''s capex cycle: intensity and trend, maintenance
+    vs. growth split, position in the industry capex cycle (build / peak / harvest
+    / starvation), ROIIC track record on prior capex rounds, funding capacity, and
+    forward capex outlook, with sub-sector lenses (semis, utilities, oil & gas, heavy
+    industrial, A&D, auto/EV, REITs, machinery). Single-company deep dive or 2–5 same-sub-sector
+    peers. Use for: capex cycle, capital expenditure analysis, capex intensity, maintenance
+    vs growth capex, ROIIC on capex, capex cycle position, "is [company] over-investing
+    or under-investing?", "compare capex discipline of [Co A] vs [Co B]". Do NOT use
+    for broad demand-cycle positioning (cycle-positioning), intrinsic value (dcf-modeling),
+    accounting/margin deep dives (financial-statement-review), or a first-pass company
+    screen (initial-screen).'
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

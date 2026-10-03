@@ -1,0 +1,22 @@
+interface:
+  display_name: thematic winners
+  short_description: Long-only thematic idea generation. Maps a theme's value chain
+    into Direct and Indirect beneficiary tiers, derives a Favor/Avoid checklist from
+    historical analogs, runs two independent screens (one per logic path) over a region
+    and size band, tallies them into a ranked shortlist, and writes Long/Pass recommendations
+    with catalysts for the top names. Uses Distilla MCP (screen_drivers, screen_earnings,
+    ku_cell, product, stock_price, standard_event, earnings_calendar, public library).
+    Use this whenever the user asks who benefits from a theme, thematic winners or
+    beneficiaries, value-chain plays, "picks and shovels", long ideas for a trend
+    (e.g. humanoid robotics, AI power, GLP-1, defense, nuclear), or which stocks to
+    own for a theme, even if they don't say "value chain" or "historical analog".
+    Do NOT use for short ideas or for explaining past sector price moves (use sector-price-driver-patterns).
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

@@ -1,0 +1,16 @@
+interface:
+  display_name: x discourse
+  short_description: Synthesizes X discourse on a stock or company to surface investor
+    sentiment, narrative shifts, and price-relevant signals from social media. Use
+    when the user asks what X/social media is saying about a stock, or wants to understand
+    retail and momentum-driven narrative around a company. Do NOT use for multi-source
+    sentiment across news, research and price (sentiment-read).
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
