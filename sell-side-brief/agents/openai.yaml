@@ -1,0 +1,22 @@
+interface:
+  display_name: sell side brief
+  short_description: 'Multi-company Sell-side Brief — a one-bullet-per-ticker digest
+    of broker research activity over a recent window (default: last 7 days): rating,
+    target, estimate and thesis changes, new company events, theme commentary and
+    reiterations. Covers the user''''s watchlist by default, OR any universe the user
+    names — a sector, theme, region, index or ticker list (e.g. ''''HK consumer stocks'''',
+    ''''my portfolio'''', ''''AAPL MSFT NVDA''''). ALWAYS use when the user says ''''sell-side
+    brief'''', ''''broker brief'''', ''''research brief'''', ''''weekly/morning brief''''
+    on broker notes, invokes ''''/sell-side-brief'''', or asks what brokers said,
+    changed or published last week / over the last N days across a group of stocks
+    — even if no watchlist is mentioned. Do NOT use for a deep single-company memo
+    on analyst coverage, consensus, broker coverage table, or valuation methodology
+    (use `sell-side-view`), or for a question asking which stocks were upgraded or
+    downgraded — a rating-event screen (use `stock-screener`).'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

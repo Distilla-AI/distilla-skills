@@ -1,0 +1,13 @@
+interface:
+  display_name: technical analysis
+  short_description: Technical read on a stock from price-and-volume data — trend,
+    momentum, participation, volatility, and chart patterns, closing with a directional
+    read by horizon. Use when the user asks for a technical read, chart analysis,
+    a trade setup, or entry/exit levels on a stock.
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

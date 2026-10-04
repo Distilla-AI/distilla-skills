@@ -1,0 +1,13 @@
+interface:
+  display_name: sentiment read
+  short_description: Generates a real-time sentiment analysis on a stock using web/news
+    flow, latest research, latest podcasts, and stock price behavior. Use when the
+    user asks for current market tone, narrative momentum, or sentiment shifts around
+    a company. Do NOT use for an X-only read (x-discourse) or a broker-view memo (sell-side-view).
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

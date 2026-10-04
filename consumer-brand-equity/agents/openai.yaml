@@ -1,0 +1,19 @@
+interface:
+  display_name: consumer brand equity
+  short_description: 'Analyzes brand equity for consumer-sector companies — how the
+    brand is built, what drives it, financial evidence of strength or weakness, and
+    durability over the next 5–10 years. Supports single-company deep dive OR comparative
+    analysis across 2–5 peers. Buy-side framework covering awareness, pricing power,
+    repeat & loyalty, cultural relevance, distribution strength, and defensibility
+    — tailored by sub-sector (apparel / food & beverage / beauty / luxury / restaurants
+    / household & CPG). Trigger: brand equity, brand strength, brand analysis, pricing
+    power assessment, brand moat, consumer brand sustainability, "how strong is [company]''''s
+    brand", "compare [Co A] vs [Co B] brand equity". Do NOT use for a broad moat and
+    rival review (competitive-position) or channel economics (distribution-channels).'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

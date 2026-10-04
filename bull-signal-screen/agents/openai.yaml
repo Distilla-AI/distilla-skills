@@ -1,0 +1,20 @@
+interface:
+  display_name: bull signal screen
+  short_description: Build a shortlist from the region, sectors and size the user
+    asks for (e.g. large-cap "new economy" stocks — AI/semis, cloud/SaaS, internet
+    platforms, EVs/clean energy, fintech, biotech — or any other sector), then run
+    three independent bullish screens — technical momentum, social-media (X/Twitter)
+    momentum, and recent insider open-market buying — and combine them into a ranked
+    list of buy candidates with the evidence behind each. Uses Distilla MCP for the
+    universe, prices, and insider events. Use this whenever the user asks for bullish
+    signal screens, momentum plus insider-buying screens, stocks with converging buy
+    signals, technical breakout screens across growth sectors, or "which stocks are
+    showing the most bullish signals", even if they don't name all three legs. Do
+    NOT use for a single-stock technical read (use technical-analysis).
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

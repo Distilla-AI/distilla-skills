@@ -1,0 +1,22 @@
+interface:
+  display_name: distribution channels
+  short_description: 'Company-level downstream go-to-market analysis for ONE company
+    (or 2–5 peers): channel mix (DTC / wholesale / digital / retail / distributor
+    / channel partner / direct sales), channel concentration (top retailer / distributor
+    / partner share), per-channel gross-margin dynamics, sell-through and channel
+    inventory, and channel mix-shift trajectory. Cross-industry: consumer, B2B industrial,
+    pharma, software/SaaS, healthcare devices. Tiered verdict (Direct-led / Balanced
+    / Channel-dependent / Channel-concentrated) with Investor Action Signal. Trigger:
+    distribution channel analysis, channel mix, DTC vs. wholesale, channel concentration,
+    sell-through, channel inventory, go-to-market analysis, "how is [company]''''s
+    channel mix shifting", "compare distribution channels of [Co A] vs [Co B]". Do
+    NOT use for profit pools across value-chain tiers or "which part of the chain
+    to own" (profit-pool-analysis), upstream sourcing risk (supply-chain-resilience),
+    or brand strength (consumer-brand-equity).'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

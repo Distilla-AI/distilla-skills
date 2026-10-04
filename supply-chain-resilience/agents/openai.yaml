@@ -1,0 +1,22 @@
+interface:
+  display_name: supply chain resilience
+  short_description: 'Operational supply-chain resilience and dependency risk analysis
+    for a company (or 2–5 peers) — supplier concentration, single vs. multi-source
+    inputs, geographic and political exposure (tariffs, sanctions, geopolitics), lead-time
+    trends, and reshoring/nearshoring trajectory. **Company-specific operational view
+    focused on RESILIENCE and DEPENDENCY RISK** — distinct from profit-pool-analysis
+    (sector profit-pool / vertical positioning), manufacturing-cost-structure (cost
+    impact of inputs and geography), and industry-analysis (sector themes and outlook).
+    Sub-sector tailored (tech/semis sanctions, auto tier-dependency, pharma API sourcing,
+    etc.). Tiered verdict (Resilient / Balanced / Vulnerable / At-risk) with Investor
+    Action Signal. Trigger: supply chain analysis, supply chain risk, supplier concentration,
+    single-source dependency, tariff exposure, sanctions exposure, lead time analysis,
+    reshoring/nearshoring, "how resilient is [company]''''s supply chain", "compare
+    supply-chain risk of [Co A] vs [Co B]".'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

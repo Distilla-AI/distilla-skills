@@ -1,8 +1,9 @@
 ---
 name: "sentiment-read"
 description: Generates a real-time sentiment analysis on a stock using web/news flow, latest research, latest podcasts, and stock price behavior. Use when the user asks for current market tone, narrative momentum, or sentiment shifts around a company. Do NOT use for an X-only read (x-discourse) or a broker-view memo (sell-side-view).
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.
 
 **Common failure** — inferring overall sentiment from a single channel (especially price action alone); allowing soft data to override hard data without explaining the disconnect; leaving the section 3 Overall rating inconsistent with the section 2 classification.
 

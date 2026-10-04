@@ -1,10 +1,11 @@
 ---
 name: "competitive-position"
 description: 'Analyzes a company''s competitive position — moat assessment, rival dynamics, Porter''s Five Forces, strategic vulnerabilities, and competitive trajectory. Trigger: competitive analysis, competitive position, moat assessment, how does [company] compare to rivals, is [company]''s competitive advantage sustainable, or Porter''s Five Forces for [company]. Do NOT use for a sector-wide memo (industry-analysis), value-chain profit pools (profit-pool-analysis), metric-by-metric peer tables (peer-benchmarking), or brand equity (consumer-brand-equity).'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
 metadata:
   required_sections: Competitive Position Verdict; Market Position; Moat Analysis; Head-to-Head Competitor Analysis|Head-to-Head; Competitive Forces|Porter's Five Forces; Strategic Vulnerabilities; Competitive Trajectory; Near-Term Catalysts|Catalysts; Monitoring Dashboard
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.
 
 **Common failure** — searching rival filings in a single merged call instead of one call per rival; assigning a moat rating without quantified evidence; leaving Moat Assessment Table rows blank instead of stating the data gap; rating a Porter's Five Forces without naming a specific company or data point; writing "widening" or "eroding" without naming the catalyst; **pulling margins, cost deltas or ROIC from the web when `financial_data_point` has them; citing one broker's view as "the Street" without checking broker coverage.**
 

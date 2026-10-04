@@ -1,0 +1,20 @@
+interface:
+  display_name: roe decomposition
+  short_description: 'Decomposes a company''''s (or 2–5 peers'''') return on equity
+    into Net Profit Margin × Asset Turnover × Equity Multiplier (3-step), with further
+    breakdown of each component and business-mechanism explanations for differences
+    vs. sector or peers. 5-step expansion (tax burden / interest burden / operating
+    margin) available on request or when tax/interest are material ROE drivers. Sub-sector
+    aware — separate framework for financials (banks, insurance, asset managers) where
+    ROA × Leverage is more meaningful than NPM × Turnover. Trigger: ROE decomposition,
+    DuPont analysis, return on equity breakdown, what drives [company]''''s ROE, why
+    is [company]''''s ROE higher/lower than peers, "decompose ROE for [Co A] vs [Co
+    B]". Do NOT use for a full three-statement diagnosis (financial-statement-review)
+    or a metric-by-metric peer table (peer-benchmarking).'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

@@ -1,12 +1,13 @@
 ---
 name: "special-situations-screen"
 description: Screen a market for live, near-term special situations across four categories — M&A/arbitrage, spin-offs/breakups, activist/restructuring, and distressed/capital-structure events — then dedupe and rank them by probability-weighted expected return. Uses Distilla MCP (standard_event, ku_cell, stock_price, financial_data_point, valuation_multiple) as the primary source. Use this whenever the user asks for special situations, event-driven or catalyst-driven ideas, merger arbitrage, tender offers, spin-off or breakup ideas, activist targets, restructurings, distressed names, recapitalizations, or rights issues across a universe, even if they don't say "special situations". Do NOT use for a deep dive on one company.
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there; the four scans can run as parallel sub-agents."
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary. Run the four scans sequentially by default; use parallel sub-agents only where supported, preserving the skill's dependencies and hand-offs.
 
 # Special Situations Screen
 
-**Platform:** Claude.ai (target). The four scans run in sequence in Claude.ai; in Claude Code they may run as sub-agents.
+**Platform:** Agent-agnostic. The four scans run in sequence by default; where the harness supports sub-agents, they may run as sub-agents.
 
 Find **active, unresolved** special situations in a universe, estimate upside, then rank survivors by **probability-weighted expected return**.
 
@@ -31,7 +32,7 @@ Step 2 — Four category scans (A M&A / arbitrage · B spin-offs / breakups · C
 Step 3 — Dedupe, > [min_upside]% filter, scoring and ranking → ranked expected-return table
 ```
 
-Then, in the same text reply below the block, ask one question — in plain text, never through the tappable-options tool, which shows only the question and hides the rundown — together with any missing-input question: stop for review after Step 2 (category scans), or run to the end. Then stop or continue as answered. A request that already states the choice ("run to the end", "stop after the scans") is the answer: print the rundown and ask nothing. No other approval stop.
+Then, in the same text reply below the block, ask one question — in plain text, never through the tappable-options tool, so the rundown and review question remain together in the same visible reply — together with any missing-input question: stop for review after Step 2 (category scans), or run to the end. Then stop or continue as answered. A request that already states the choice ("run to the end", "stop after the scans") is the answer: print the rundown and ask nothing. No other approval stop.
 
 ## Data-source fallback
 
@@ -43,7 +44,7 @@ Then, in the same text reply below the block, ask one question — in plain text
 
 Never call any other connector, even when one is connected.
 
-### Distilla data rules (shared block v26: 2.1, 2.2, 2.3, 2.4, 2.6, 2.7, 2.8 · 3b, 3f, 3g)
+### Distilla data rules (shared block v26.1: 2.1, 2.2, 2.3, 2.4, 2.6, 2.7, 2.8 · 3b, 3f, 3g)
 
 #### 2.1 Pre-flight checks (before any data step)
 
@@ -140,7 +141,7 @@ Never call any other connector, even when one is connected.
 | Price, returns, volume | `stock_price` (`adjusted_close`, `volume`, `currency`; `change` is a decimal fraction) | None | Current quote only: Yahoo Finance. History: **None** — leave `--`. |
 | Market cap, EV | Rebuild per rule 2.3 | `stock_price.market_cap` / `enterprise_value` only if within 10% of the rebuild | **None** — rebuild or `--` |
 | Valuation multiple vs own history | `valuation_multiple` (`LTM_` / `NTM_` types; latest value spot-checked, rule 2.4); EPS-based multiples only after 2.1 #2 | Rebuild per rule 2.4 | **None** |
-| FX rates | Not in Distilla MCP today | None (vendor `market_cap` ÷ local cap, rule 2.6, is a cross-check only, never an input) | **Latest date — Google Finance, tried first, before any other source or `--`:** `web_search` for `google.com/finance/quote/USD-{CCY}` (e.g. `USD-JPY`, `USD-KRW`, `USD-HKD`, `USD-CNY`, `USD-TWD`), then `web_fetch` the returned URL and read the rate and timestamp from the page — never the search snippet (it can be a stale crawl), and `web_fetch` refuses a typed URL. **Past date or month-end history:** Federal Reserve H.10 / FRED daily USD series (covers TWD, HKD, JPY, KRW, CNY) → ECB euro reference rates, crossed via EUR (no TWD); H.10 publishes weekly with a lag — check each series' latest observation; for dates after it, use ECB for that date. **Pair check:** `USD / JPY 157.2750` = JPY per USD → divide the local amount by it; a USD-per-local quote (`1 KRW = 0.00073785 USD`) is inverted first (1,355.3 KRW per USD). A rate that feeds a compared, ranked, valued or threshold-tested number is stated with pair, rate, source and timestamp (or date); only an illustrative conversion (a USD equivalent in prose, a floor cleared ≥2×) may use an approximate rate, written `≈ {rate}, as of {date}`. |
+| FX rates | Not in Distilla MCP today | None (vendor `market_cap` ÷ local cap, rule 2.6, is a cross-check only, never an input) | **Latest date — Google Finance, tried first, before any other source or `--`:** `web_search` for `google.com/finance/quote/USD-{CCY}` (e.g. `USD-JPY`, `USD-KRW`, `USD-HKD`, `USD-CNY`, `USD-TWD`), then `web_fetch` the returned URL and read the rate and timestamp from the page — never the search snippet (it can be a stale crawl), If the host requires a search-discovered URL before fetching, obtain it through search first. **Past date or month-end history:** Federal Reserve H.10 / FRED daily USD series (covers TWD, HKD, JPY, KRW, CNY) → ECB euro reference rates, crossed via EUR (no TWD); H.10 publishes weekly with a lag — check each series' latest observation; for dates after it, use ECB for that date. **Pair check:** `USD / JPY 157.2750` = JPY per USD → divide the local amount by it; a USD-per-local quote (`1 KRW = 0.00073785 USD`) is inverted first (1,355.3 KRW per USD). A rate that feeds a compared, ranked, valued or threshold-tested number is stated with pair, rate, source and timestamp (or date); only an illustrative conversion (a USD equivalent in prose, a floor cleared ≥2×) may use an approximate rate, written `≈ {rate}, as of {date}`. |
 | Large price moves | `price_explanation` (`date`, `price_move_percentage` — decimal, rule 2.6, `explanation`) | `standard_event` and `file` `News Article` on the same dates | Company press releases → major newswires; `web_fetch` before citing |
 | Peer / rival set | Companies sharing a `product_category` with the target via `ku_cell` `groupProductCategory` (the `product` entity has no category field); `company.sector_id`; `ku_cell`: `competitions`, `competitive_outlook` | One `screen_drivers` call on the full scope with a criterion describing the business | Official filings — SEC EDGAR (US), HKEXnews (HK), EDINET / TDnet (JP), DART (KR), CNINFO (CN) (competition section) → company IR investor presentation |
 | Universe (listing, sector) | `company` (`hq_country`, `sector_id`); size per the 3f gate | `ticker` | **None** — the universe is Distilla-only; never add web-found names |

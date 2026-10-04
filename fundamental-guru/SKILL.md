@@ -1,12 +1,13 @@
 ---
 name: "fundamental-guru"
 description: Full single-company investment committee process — first-pass screen, sector-routed deep-dive modules (brand, channel, growth, cost, supply chain, technology, profit pool, capex cycle, cycle, utilization, ROE, moat), a two-round IC debate between Buffett-, Cathie Wood-, and Peter Lynch-style personas, a CIO Buy/Sell/Hold verdict with price ranges, and a five-question forward research plan. Uses Distilla MCP (ku_cell, company_drivers, standard_event, stock_price, financial_data_point, valuation_multiple, public library). Use this whenever the user asks for an investment committee review, IC memo, deep fundamental analysis, "run the full process" on a stock, a multi-perspective debate on a company, or a Buy/Sell/Hold verdict with a research plan, even if they just give a ticker and say "full workup". Do NOT use for a quick first look only (use initial-screen).
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there; module steps can run as parallel sub-agents."
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary. Run independent module steps sequentially by default; use parallel sub-agents only where supported, preserving the skill's dependencies and hand-offs.
 
 # Fundamental Guru
 
-**Platform:** Claude.ai (target). Parallel steps run in sequence in Claude.ai; in Claude Code they may run as sub-agents.
+**Platform:** Agent-agnostic. Parallel steps run in sequence by default; where the harness supports sub-agents, they may run as sub-agents.
 
 One company → first-pass screen + valuation context → sector-routed deep dive → IC debate (2 rounds) → CIO verdict → research plan.
 
@@ -33,7 +34,7 @@ Step 4 — CIO verdict and price ranges
 Step 5 — Five-question research plan
 ```
 
-Then, in the same text reply below the block, ask one question — in plain text, never through the tappable-options tool, which shows only the question and hides the rundown: stop for review after Step 1 (initial-screen), or run to the end. A request that already states the choice ("run the full process", "full investment committee process", "full workup", "IC memo end to end", "stop after the screen") is the answer: print the rundown and ask nothing. A bare "investment committee review", "IC review" or "IC memo on X" does not state it — ask. Then stop after Step 1 or continue, as answered; no other approval stop. On a review stop, show the assessment, valuation context and routing sector.
+Then, in the same text reply below the block, ask one question — in plain text, never through the tappable-options tool, so the rundown and review question remain together in the same visible reply: stop for review after Step 1 (initial-screen), or run to the end. A request that already states the choice ("run the full process", "full investment committee process", "full workup", "IC memo end to end", "stop after the screen") is the answer: print the rundown and ask nothing. A bare "investment committee review", "IC review" or "IC memo on X" does not state it — ask. Then stop after Step 1 or continue, as answered; no other approval stop. On a review stop, show the assessment, valuation context and routing sector.
 
 ## Data-source fallback
 
@@ -45,7 +46,7 @@ Then, in the same text reply below the block, ask one question — in plain text
 
 Never call any other connector, even when one is connected.
 
-### Distilla data rules (shared block v26: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8 · 3a, 3b, 3c, 3e)
+### Distilla data rules (shared block v26.1: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8 · 3a, 3b, 3c, 3e)
 
 #### 2.1 Pre-flight checks (before any data step)
 
@@ -167,7 +168,7 @@ Never call any other connector, even when one is connected.
 | Price, returns, volume | `stock_price` (`adjusted_close`, `volume`, `currency`; `change` is a decimal fraction) | None | Current quote only: Yahoo Finance. History: **None** — leave `--`. |
 | Market cap, EV | Rebuild per rule 2.3 | `stock_price.market_cap` / `enterprise_value` only if within 10% of the rebuild | **None** — rebuild or `--` |
 | Valuation multiple vs own history | `valuation_multiple` (`LTM_` / `NTM_` types; latest value spot-checked, rule 2.4); EPS-based multiples only after 2.1 #2 | Rebuild per rule 2.4 | **None** |
-| FX rates | Not in Distilla MCP today | None (vendor `market_cap` ÷ local cap, rule 2.6, is a cross-check only, never an input) | **Latest date — Google Finance, tried first, before any other source or `--`:** `web_search` for `google.com/finance/quote/USD-{CCY}` (e.g. `USD-JPY`, `USD-KRW`, `USD-HKD`, `USD-CNY`, `USD-TWD`), then `web_fetch` the returned URL and read the rate and timestamp from the page — never the search snippet (it can be a stale crawl), and `web_fetch` refuses a typed URL. **Past date or month-end history:** Federal Reserve H.10 / FRED daily USD series (covers TWD, HKD, JPY, KRW, CNY) → ECB euro reference rates, crossed via EUR (no TWD); H.10 publishes weekly with a lag — check each series' latest observation; for dates after it, use ECB for that date. **Pair check:** `USD / JPY 157.2750` = JPY per USD → divide the local amount by it; a USD-per-local quote (`1 KRW = 0.00073785 USD`) is inverted first (1,355.3 KRW per USD). A rate that feeds a compared, ranked, valued or threshold-tested number is stated with pair, rate, source and timestamp (or date); only an illustrative conversion (a USD equivalent in prose, a floor cleared ≥2×) may use an approximate rate, written `≈ {rate}, as of {date}`. |
+| FX rates | Not in Distilla MCP today | None (vendor `market_cap` ÷ local cap, rule 2.6, is a cross-check only, never an input) | **Latest date — Google Finance, tried first, before any other source or `--`:** `web_search` for `google.com/finance/quote/USD-{CCY}` (e.g. `USD-JPY`, `USD-KRW`, `USD-HKD`, `USD-CNY`, `USD-TWD`), then `web_fetch` the returned URL and read the rate and timestamp from the page — never the search snippet (it can be a stale crawl), If the host requires a search-discovered URL before fetching, obtain it through search first. **Past date or month-end history:** Federal Reserve H.10 / FRED daily USD series (covers TWD, HKD, JPY, KRW, CNY) → ECB euro reference rates, crossed via EUR (no TWD); H.10 publishes weekly with a lag — check each series' latest observation; for dates after it, use ECB for that date. **Pair check:** `USD / JPY 157.2750` = JPY per USD → divide the local amount by it; a USD-per-local quote (`1 KRW = 0.00073785 USD`) is inverted first (1,355.3 KRW per USD). A rate that feeds a compared, ranked, valued or threshold-tested number is stated with pair, rate, source and timestamp (or date); only an illustrative conversion (a USD equivalent in prose, a floor cleared ≥2×) may use an approximate rate, written `≈ {rate}, as of {date}`. |
 | Large price moves | `price_explanation` (`date`, `price_move_percentage` — decimal, rule 2.6, `explanation`) | `standard_event` and `file` `News Article` on the same dates | Company press releases → major newswires; `web_fetch` before citing |
 | Peer / rival set | Companies sharing a `product_category` with the target via `ku_cell` `groupProductCategory` (the `product` entity has no category field); `company.sector_id`; `ku_cell`: `competitions`, `competitive_outlook` | One `screen_drivers` call on the full scope with a criterion describing the business | Official filings — SEC EDGAR (US), HKEXnews (HK), EDINET / TDnet (JP), DART (KR), CNINFO (CN) (competition section) → company IR investor presentation |
 | Effective / marginal tax rate | Derive per rule 2.3 from `financial_data_point` (`‡`); `financials_review` footnote tax rates are Distilla model, never inputs | `file` `Filing` (tax note) | Official filings — SEC EDGAR (US), HKEXnews (HK), EDINET / TDnet (JP), DART (KR), CNINFO (CN) → statutory rate from the national tax authority; else a stated assumption, same basis for every peer |

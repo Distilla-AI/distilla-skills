@@ -1,10 +1,11 @@
 ---
 name: "profit-pool-analysis"
 description: 'Generates an investor-grade value chain analysis covering industry structure, profit pool mapping, upstream/downstream power dynamics, and supply chain risks. Trigger: value chain analysis, supply chain analysis, profit pool, upstream/downstream dynamics, industry structure, where does margin sit, or "which part of the value chain should I own". Do NOT use for one company''s channel mix (distribution-channels) or its supplier dependency risk (supply-chain-resilience).'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
 metadata:
   required_sections: Supply Chain Verdict; Value Chain Map; Upstream Analysis|Upstream; Peer Tier Analysis|Horizontal; Downstream Analysis|Downstream; Profit Pool Migration; Tier Cycle Sensitivity; Supply Chain Risks; Near-Term Catalysts|Catalysts; Monitoring Dashboard
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.
 
 **Common failure** — inserting estimated margin figures without a cited source; researching companies in adjacent sectors rather than confirmed material-tier players; skipping Step 1 tier classification and diving straight into research.
 
@@ -233,3 +234,4 @@ Before submitting, state PASS or FAIL for each check below with cited evidence (
 
 1. **Data rules:** every input came from the highest rung with data, under the Data-source fallback ladder and the pasted Distilla data rules as written; no connector called.
 2. **Visible lines and workflow:** every caption, stated rate, label and footnote the steps and output format require is present; no markers beyond `†`, `‡` and `*`; every step run in full — none shortened or skipped for speed; Method notes ≤4 lines; each PASS names its tool call.
+3. **Output contracts:** the Profit Pool Table shows the period labels required by its selected basis (including each row's FY-end month when using latest FY per company); every Material Value Chain Map tier includes approximate revenue scale where retrieved, else `--`; every Supply Chain Risk includes Probability, impacted tier, and early-warning signal; every Near-Term Catalyst states what outcome would be positive vs. negative for the target tier.

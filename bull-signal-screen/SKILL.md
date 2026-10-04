@@ -1,12 +1,13 @@
 ---
 name: "bull-signal-screen"
 description: Build a shortlist from the region, sectors and size the user asks for (e.g. large-cap "new economy" stocks — AI/semis, cloud/SaaS, internet platforms, EVs/clean energy, fintech, biotech — or any other sector), then run three independent bullish screens — technical momentum, social-media (X/Twitter) momentum, and recent insider open-market buying — and combine them into a ranked list of buy candidates with the evidence behind each. Uses Distilla MCP for the universe, prices, and insider events. Use this whenever the user asks for bullish signal screens, momentum plus insider-buying screens, stocks with converging buy signals, technical breakout screens across growth sectors, or "which stocks are showing the most bullish signals", even if they don't name all three legs. Do NOT use for a single-stock technical read (use technical-analysis).
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: the same file runs there; the three screens can run as parallel sub-agents."
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary. Run the three screens sequentially by default; use parallel sub-agents only where supported, preserving the skill's dependencies and hand-offs.
 
 # Bull Signal Screen
 
-**Platform:** Claude.ai (target). The three screens run in sequence in Claude.ai; in Claude Code they may run as sub-agents.
+**Platform:** Agent-agnostic. The three screens run in sequence by default; where the harness supports sub-agents, they may run as sub-agents.
 
 Shortlist → three independent screens → one combined score → top candidates with evidence.
 
@@ -31,7 +32,7 @@ Step 2 — Three screens (A technical · B X/Twitter momentum · C insider buyin
 Step 3 — Combine → ranked table and top-candidate evidence
 ```
 
-Then, in the same text reply below the block, ask one question — in plain text, never through the tappable-options tool, which shows only the question and hides the rundown — together with any missing-input question: stop for review after Step 1 (shortlist), or run to the end. Then stop or continue as answered. A request that already states the choice ("run to the end", "stop after the shortlist") is the answer: print the rundown and ask nothing. No other approval stop.
+Then, in the same text reply below the block, ask one question — in plain text, never through the tappable-options tool, so the rundown and review question remain together in the same visible reply — together with any missing-input question: stop for review after Step 1 (shortlist), or run to the end. Then stop or continue as answered. A request that already states the choice ("run to the end", "stop after the shortlist") is the answer: print the rundown and ask nothing. No other approval stop.
 
 ## Data-source fallback
 
@@ -43,7 +44,7 @@ Then, in the same text reply below the block, ask one question — in plain text
 
 Never call any other connector, even when one is connected.
 
-### Distilla data rules (shared block v25: 2.1, 2.2, 2.3, 2.6, 2.7, 2.8 · 3f)
+### Distilla data rules (shared block v26.1: 2.1, 2.2, 2.3, 2.6, 2.7, 2.8 · 3f)
 
 #### 2.1 Pre-flight checks (before any data step)
 
@@ -87,7 +88,7 @@ Never call any other connector, even when one is connected.
 |---|---|---|---|
 | Price, returns, volume | `stock_price` (`adjusted_close`, `volume`, `currency`; `change` is a decimal fraction) | None | Current quote only: Yahoo Finance. History: **None** — leave `--`. |
 | Market cap, EV | Rebuild per rule 2.3 | `stock_price.market_cap` / `enterprise_value` only if within 10% of the rebuild | **None** — rebuild or `--` |
-| FX rates | Not in Distilla MCP today | None (vendor `market_cap` ÷ local cap, rule 2.6, is a cross-check only, never an input) | **Latest date — Google Finance, tried first, before any other source or `--`:** `web_search` for `google.com/finance/quote/USD-{CCY}` (e.g. `USD-JPY`, `USD-KRW`, `USD-HKD`, `USD-CNY`, `USD-TWD`), then `web_fetch` the returned URL and read the rate and timestamp from the page — never the search snippet (it can be a stale crawl), and `web_fetch` refuses a typed URL. **Past date or month-end history:** Federal Reserve H.10 / FRED daily USD series (covers TWD, HKD, JPY, KRW, CNY) → ECB euro reference rates, crossed via EUR (no TWD); H.10 publishes weekly with a lag — check each series' latest observation; for dates after it, use ECB for that date. **Pair check:** `USD / JPY 157.2750` = JPY per USD → divide the local amount by it; a USD-per-local quote (`1 KRW = 0.00073785 USD`) is inverted first (1,355.3 KRW per USD). A rate that feeds a compared, ranked, valued or threshold-tested number is stated with pair, rate, source and timestamp (or date); only an illustrative conversion (a USD equivalent in prose, a floor cleared ≥2×) may use an approximate rate, written `≈ {rate}, as of {date}`. |
+| FX rates | Not in Distilla MCP today | None (vendor `market_cap` ÷ local cap, rule 2.6, is a cross-check only, never an input) | **Latest date — Google Finance, tried first, before any other source or `--`:** `web_search` for `google.com/finance/quote/USD-{CCY}` (e.g. `USD-JPY`, `USD-KRW`, `USD-HKD`, `USD-CNY`, `USD-TWD`), then `web_fetch` the returned URL and read the rate and timestamp from the page — never the search snippet (it can be a stale crawl), If the host requires a search-discovered URL before fetching, obtain it through search first. **Past date or month-end history:** Federal Reserve H.10 / FRED daily USD series (covers TWD, HKD, JPY, KRW, CNY) → ECB euro reference rates, crossed via EUR (no TWD); H.10 publishes weekly with a lag — check each series' latest observation; for dates after it, use ECB for that date. **Pair check:** `USD / JPY 157.2750` = JPY per USD → divide the local amount by it; a USD-per-local quote (`1 KRW = 0.00073785 USD`) is inverted first (1,355.3 KRW per USD). A rate that feeds a compared, ranked, valued or threshold-tested number is stated with pair, rate, source and timestamp (or date); only an illustrative conversion (a USD equivalent in prose, a floor cleared ≥2×) may use an approximate rate, written `≈ {rate}, as of {date}`. |
 | Universe and sector | `company` (`hq_country`, `sector_id`, `summary`) → `sector.name`; size per the 3f gate | `company_drivers`; one `screen_drivers` call on the `company_ids` | **None** — the universe is Distilla-only; never add web-found names |
 | X / social discourse | Not in Distilla MCP today; dated KOL events for corroboration only: `standard_event` (`Key Opinion Leader Mention of Company`; ingestion-dated, rule 2.6) | None | **Temporary, until Distilla MCP exposes X data:** the `x-discourse` skill's path — `web_search` scoped to x.com (`site:x.com $TICKER`; influential voices taken from those results, no per-voice queries) → `web_fetch` on returned posts. Keep only posts dated inside the window; state the sample size. |
 | Insider purchase (existence) | `standard_event` `Purchase or sale of shares by insiders` (classified by `name`, rule 2.6); >10% owners via `Purchase or sale of shares by major investors` | `file` (`News Article`) for the same company and window | EDGAR Form 4 (or regional: EDINET, HKEXnews DI, DART) → company IR → named aggregator (e.g. OpenInsider) |
@@ -157,7 +158,7 @@ X/Twitter data is **not in Distilla MCP today**. Follow the X / social discourse
 - Confirm whether each stock shows **fresh** momentum or attention: a strengthening or newly trending narrative in in-window posts — not stale or fading chatter — scored per the X-leg field note.
 - Capture concrete evidence: specific trending narratives, notable accounts or posts driving it, engagement data points, and the in-window post count.
 - Supporting signal: Distilla `standard_event` type `Key Opinion Leader Mention of Company` in the last 30 days, one grouped call for all names (deduped, rule 2.6). Cite it as "KOL mention (Distilla)", not as X data.
-- Every reachable name gets its X search before Step 3, with `web_search` — never `web_search_fast`, which ignores `site:`. An unsearched name is never scored 0; a run with an unsearched reachable name is partial: name them and resume, never rank with them open.
+- Every reachable name gets its X search before Step 3, with a web search tool that supports site scoping; verify that retained results are from x.com. Never use a search variant that ignores the site restriction. An unsearched name is never scored 0; a run with an unsearched reachable name is partial: name them and resume, never rank with them open.
 - **Keep only confirmed Yes rows.**
 
 **Output:** table — ticker, momentum = Yes, narrative summary, notable accounts/posts, engagement or sentiment evidence (Trend Velocity).

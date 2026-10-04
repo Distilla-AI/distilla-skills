@@ -1,6 +1,6 @@
 # Distilla MCP reference
 
-Verified against the live Distilla MCP schema (25 Sep 2026). Read this before the first Distilla call. Re-run `describe_queryable_entities` if a field here errors — the schema is the authority. The skill's own Distilla data rules (the shared block in `SKILL.md`) win where this file is less specific. Call only Distilla MCP, `web_search` / `web_fetch` and Python — never any other connector, even when one is connected.
+Verified against the live Distilla MCP schema (25 Sep 2026). Read this before the first Distilla call. Re-run `describe_queryable_entities` if a field here errors — the schema is the authority. The skill's own Distilla data rules (the shared block in `SKILL.md`) win where this file is less specific. Call only Distilla MCP, web search / page fetch (`web_search` / `web_fetch` or the harness's equivalents) and Python — never any other connector, even when one is connected.
 
 ## Contents
 1. Setup and tools
@@ -17,7 +17,7 @@ Verified against the live Distilla MCP schema (25 Sep 2026). Read this before th
 
 ## 1. Setup and tools
 
-Distilla tools may be deferred. In Claude.ai, load them with `tool_search` (e.g. query "Distilla queryable entities") before the first call. In Claude Code they appear as `mcp__Distilla__<tool>`.
+Distilla tools may be deferred. If the harness defers tool loading, load them with its tool-search mechanism (e.g. query "Distilla queryable entities") before the first call. Some harnesses prefix MCP tool names (e.g. `mcp__Distilla__<tool>`).
 
 Call `list_queryable_entities`, then `describe_queryable_entities` (comma-separated, e.g. `company,stock_price,standard_event`) once per conversation before querying. Don't guess field names.
 

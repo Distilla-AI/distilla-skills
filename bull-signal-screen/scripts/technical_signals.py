@@ -2,7 +2,7 @@
 """Score the six bull-signal technical criteria from daily adjusted close + volume.
 
 Also returns the three numeric regime inputs the technical-analysis skill uses
-(numbers only -- the regime label is assigned by Claude, never by this script).
+(numbers only -- the regime label is assigned by the agent, never by this script).
 
 Input: a CSV or JSON file of rows with columns symbol, date, adjusted_close, volume and,
 optionally, close, split and change (Distilla stock_price rows). Needs >= 250 sessions per symbol for full scoring
@@ -204,7 +204,7 @@ def main():
             continue
         print(f"| {r['symbol']} | {fmt(r['rsi_50_70'])} | {fmt(r['obv_rising'])} | {fmt(r['volume_surge'])} | "
               f"{fmt(r['golden_cross'])} | {fmt(r['macd_cross'])} | {fmt(r['breakout'])} | {r['total_score']} |")
-    print("\nRegime inputs (label assigned by Claude per the technical-analysis regime table):")
+    print("\nRegime inputs (label assigned by the agent per the technical-analysis regime table):")
     for r in rows:
         print(f"- {r['symbol']}: R2(50) {r['r2_50']}; 200d SMA 50-session slope {r['sma200_slope50_pct']}%; "
               f"share of last 50 closes above 200d SMA {r['pct_above_sma200_50']}; "
