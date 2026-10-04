@@ -11,8 +11,6 @@ interface:
     "run the full process" on a stock, a multi-perspective debate on a company, or
     a Buy/Sell/Hold verdict with a research plan, even if they just give a ticker
     and say "full workup". Do NOT use for a quick first look only (use initial-screen).
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

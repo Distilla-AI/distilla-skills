@@ -11,8 +11,6 @@ interface:
     is [company]''''s ROE higher/lower than peers, "decompose ROE for [Co A] vs [Co
     B]". Do NOT use for a full three-statement diagnosis (financial-statement-review)
     or a metric-by-metric peer table (peer-benchmarking).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

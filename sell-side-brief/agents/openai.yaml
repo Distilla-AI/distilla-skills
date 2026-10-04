@@ -13,8 +13,6 @@ interface:
     on analyst coverage, consensus, broker coverage table, or valuation methodology
     (use `sell-side-view`), or for a question asking which stocks were upgraded or
     downgraded — a rating-event screen (use `stock-screener`).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

@@ -6,8 +6,6 @@ interface:
     in its cycle, whether the stock is ahead of or behind the fundamental cycle. Buy-side
     analyst voice. Do NOT use for capex discipline (capex-cycle), utilization levels
     alone (capacity-utilization), or diagnosing a multiple re-rating (valuation-compression-recovery).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

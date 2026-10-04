@@ -13,8 +13,6 @@ interface:
     NOT use for profit pools across value-chain tiers or "which part of the chain
     to own" (profit-pool-analysis), upstream sourcing risk (supply-chain-resilience),
     or brand strength (consumer-brand-equity).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

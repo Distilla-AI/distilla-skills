@@ -11,8 +11,6 @@ interface:
     signals, technical breakout screens across growth sectors, or "which stocks are
     showing the most bullish signals", even if they don't name all three legs. Do
     NOT use for a single-stock technical read (use technical-analysis).
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

@@ -11,8 +11,6 @@ interface:
     structure, activist presence, governance red flags, "is [CEO] a good operator",
     "compare governance of [Co A] vs [Co B]". Do NOT use for a first-pass company
     screen (initial-screen).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

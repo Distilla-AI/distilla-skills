@@ -6,8 +6,6 @@ interface:
     upstream/downstream dynamics, industry structure, where does margin sit, or "which
     part of the value chain should I own". Do NOT use for one company''''s channel
     mix (distribution-channels) or its supplier dependency risk (supply-chain-resilience).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

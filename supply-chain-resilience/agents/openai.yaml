@@ -13,8 +13,6 @@ interface:
     single-source dependency, tariff exposure, sanctions exposure, lead time analysis,
     reshoring/nearshoring, "how resilient is [company]''''s supply chain", "compare
     supply-chain risk of [Co A] vs [Co B]".'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

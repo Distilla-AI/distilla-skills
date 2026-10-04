@@ -4,8 +4,6 @@ interface:
     momentum, participation, volatility, and chart patterns, closing with a directional
     read by horizon. Use when the user asks for a technical read, chart analysis,
     a trade setup, or entry/exit levels on a stock.
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

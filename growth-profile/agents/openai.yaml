@@ -11,8 +11,6 @@ interface:
     "is [company]''''s growth sustainable", "compare growth profile of [Co A] vs [Co
     B]". Do NOT use for consensus revision trends (earnings-revisions) or a full financial-statement
     diagnosis (financial-statement-review).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

@@ -4,8 +4,6 @@ interface:
     flow, latest research, latest podcasts, and stock price behavior. Use when the
     user asks for current market tone, narrative momentum, or sentiment shifts around
     a company. Do NOT use for an X-only read (x-discourse) or a broker-view memo (sell-side-view).
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

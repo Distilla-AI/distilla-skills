@@ -12,8 +12,6 @@ interface:
     outperformed after X"), or actionable long/short trade recommendations carrying
     thesis + catalyst + invalidation + R/R — use `long-short-ideas` for that last
     case.
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

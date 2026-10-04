@@ -11,8 +11,6 @@ interface:
     (e.g. humanoid robotics, AI power, GLP-1, defense, nuclear), or which stocks to
     own for a theme, even if they don't say "value chain" or "historical analog".
     Do NOT use for short ideas or for explaining past sector price moves (use sector-price-driver-patterns).
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

@@ -10,8 +10,6 @@ interface:
     for pricing and margins. Do NOT use for capex discipline and ROIIC (capex-cycle),
     where a company sits in its broader demand cycle (cycle-positioning), or cost
     structure (manufacturing-cost-structure).
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

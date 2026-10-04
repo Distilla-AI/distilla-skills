@@ -11,8 +11,6 @@ interface:
     with a verdict (initial-screen), a full financial-statement diagnosis (financial-statement-review),
     intrinsic value (dcf-modeling), long/short pitches with catalysts (long-short-ideas),
     or a broker-coverage memo (sell-side-view).
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

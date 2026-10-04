@@ -10,8 +10,6 @@ interface:
     power assessment, brand moat, consumer brand sustainability, "how strong is [company]''''s
     brand", "compare [Co A] vs [Co B] brand equity". Do NOT use for a broad moat and
     rival review (competitive-position) or channel economics (distribution-channels).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

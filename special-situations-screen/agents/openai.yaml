@@ -9,8 +9,6 @@ interface:
     offers, spin-off or breakup ideas, activist targets, restructurings, distressed
     names, recapitalizations, or rights issues across a universe, even if they don't
     say "special situations". Do NOT use for a deep dive on one company.
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

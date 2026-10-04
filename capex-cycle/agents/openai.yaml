@@ -11,8 +11,6 @@ interface:
     for broad demand-cycle positioning (cycle-positioning), intrinsic value (dcf-modeling),
     accounting/margin deep dives (financial-statement-review), or a first-pass company
     screen (initial-screen).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

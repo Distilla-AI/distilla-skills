@@ -5,8 +5,6 @@ interface:
     when the user asks what X/social media is saying about a stock, or wants to understand
     retail and momentum-driven narrative around a company. Do NOT use for multi-source
     sentiment across news, research and price (sentiment-read).
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

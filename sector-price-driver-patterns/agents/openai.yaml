@@ -13,8 +13,6 @@ interface:
     "value chain". Do NOT use when the user asks for today''''s setup, trade ideas
     or positioning (use sector-price-driver-review), for a single-stock question,
     or for general market commentary with no sector focus.'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

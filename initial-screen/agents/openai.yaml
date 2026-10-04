@@ -13,8 +13,6 @@ interface:
     accounting deep dive (financial-statement-review), intrinsic value (dcf-modeling),
     trade idea with catalyst and R/R (long-short-ideas), 2-pager or management questions
     (company-brief), full IC Buy/Sell/Hold (fundamental-guru).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

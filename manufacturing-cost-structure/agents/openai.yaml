@@ -9,8 +9,6 @@ interface:
     is [company]", "compare cost structure of [Co A] vs [Co B]". Do NOT use for multi-period
     trend analysis of financial metrics — use `financial-statement-review` for questions
     about how revenue, margins, or earnings have trended over time.'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

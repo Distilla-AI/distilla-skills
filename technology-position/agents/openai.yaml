@@ -11,8 +11,6 @@ interface:
     protection, "how strong is [company]''''s technology position", "compare technology
     of [Co A] vs [Co B]". Do NOT use for a broad moat and rival review (competitive-position)
     or brand strength (consumer-brand-equity).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

@@ -13,8 +13,6 @@ interface:
     moved, what drove it, or which layer led or lagged, with no setup or ideas requested
     (use sector-price-driver-patterns); for a single-stock question; or for general
     market commentary with no sector focus.'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

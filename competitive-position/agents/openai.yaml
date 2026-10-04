@@ -7,8 +7,6 @@ interface:
     sustainable, or Porter''''s Five Forces for [company]. Do NOT use for a sector-wide
     memo (industry-analysis), value-chain profit pools (profit-pool-analysis), metric-by-metric
     peer tables (peer-benchmarking), or brand equity (consumer-brand-equity).'
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt

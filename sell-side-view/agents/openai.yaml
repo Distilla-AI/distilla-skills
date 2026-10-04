@@ -10,8 +10,6 @@ interface:
     one full memo per company. Do NOT use for a multi-company, sector, region, theme
     or watchlist digest, or for any request that says 'sell-side brief', 'broker brief',
     'research brief' or '/sell-side-brief' (use `sell-side-brief`).
-  icon_small: assets/icon.svg
-  icon_large: assets/icon.svg
 policy:
   products:
   - chatgpt
