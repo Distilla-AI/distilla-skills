@@ -84,7 +84,7 @@ State the resolved mode in the Assumptions block. Modes cannot be changed intra-
 |---|---|---|
 | ≥ 90% of target | none | proceed |
 | `[70%, 90%)` | `UNDER_DEPLOYED` (soft) | note the binding cause in the constraint report |
-| < 70% | `UNDER_DEPLOYED` (hard) | additionally revisit DEFERRED decisions and upsize under-weight positions before finalizing; if 70% still unreachable, cite the binding cap |
+| < 70% | `UNDER_DEPLOYED` (hard) | additionally revisit DEFERRED decisions and restore under-weight positions (below their Rule 5 target weight) to that target, never past it, before finalizing; if 70% still unreachable, cite the binding cap |
 
 `UNDER_DEPLOYED` is not a hard breach — Rule 10 puts caps above deployment — it IS mandatory when the threshold is crossed.
 
