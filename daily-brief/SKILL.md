@@ -1,8 +1,9 @@
 ---
 name: "daily-brief"
 description: Per-watchlist-company summary of important not-yet-priced events from yesterday or today. Use when the user asks for a "morning note", "daily brief", "what's moving today", or any watchlist-scoped catalyst/news check for today or this morning. Watchlist-only; companies with no qualifying event are excluded entirely. Do NOT use for sector-wide or universe-wide price movement queries ("which stocks in X moved yesterday") — those should go to `stock-screener`.
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.
 
 **Common failure** — failure modes to guard against before output:
 1. Using the article's published date as the event date. The article is *about* an event that may have happened earlier; the event date is inside the body.

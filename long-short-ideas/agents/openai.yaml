@@ -1,0 +1,22 @@
+interface:
+  display_name: long short ideas
+  short_description: 'Generates senior analyst-grade long and/or short ideas: each
+    carries a mechanism-based thesis, date-anchored catalyst, quantified risk/reward,
+    and specific invalidation condition. Classifies the criterion into one of eight
+    types (thematic / event-driven / valuation / cyclical / quality-growth / momentum
+    / pair-trade / macro-regime). Returns a ranked shortlist (5–10 per side, default)
+    or a deep-dive pitch on 1 long + 1 short. Horizons: Tactical 0–3m / Medium 3–12m
+    / Structural 1–3y. Follows the user''s literal direction (long-only / short-only
+    / paired). Trigger: ''long ideas'', ''short ideas'', ''long/short ideas'', ''pitch
+    me longs in [X]'', ''shorts in [Y]'', ''what to buy / short'', ''winners and losers
+    of [X]'', ''beneficiaries / victims of [event]''. Use only for ACTIONABLE ideas
+    with thesis + catalyst + invalidation + R/R. Do NOT use for filter-only lists
+    (stock-screener), single-company diagnostics (financial-statement-review, company-brief),
+    or a pre-print setup (earnings-preview).'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

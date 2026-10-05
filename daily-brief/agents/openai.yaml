@@ -1,0 +1,15 @@
+interface:
+  display_name: daily brief
+  short_description: Per-watchlist-company summary of important not-yet-priced events
+    from yesterday or today. Use when the user asks for a "morning note", "daily brief",
+    "what's moving today", or any watchlist-scoped catalyst/news check for today or
+    this morning. Watchlist-only; companies with no qualifying event are excluded
+    entirely. Do NOT use for sector-wide or universe-wide price movement queries ("which
+    stocks in X moved yesterday") — those should go to `stock-screener`.
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

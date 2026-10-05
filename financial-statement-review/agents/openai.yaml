@@ -1,0 +1,22 @@
+interface:
+  display_name: financial statement review
+  short_description: 'Produces a DIAGNOSTIC review of a company''s three financial
+    statements — income statement (revenue, margins, earnings quality), cash flow
+    (FCF conversion, working capital, capex intensity), and balance sheet (leverage,
+    solvency, capital structure) — plus industry-specific KPIs, capital allocation
+    track record, and accounting red flags. Deliverable: narrative + 5-year + latest-quarter
+    scorecard + accounting irregularities check, NOT a metric lookup. Trigger: financial
+    health diagnosis, accounting quality review, balance sheet health check, earnings
+    quality, cash flow analysis, "how healthy is [company] financially", "analyze
+    / review [company]''s financial statements", "what''s driving [company]''s margin
+    / FCF / earnings change", "accounting red flags for [company]". Do NOT use for
+    simple metric lookups ("what''s [company]''s ROIC", "revenue last 4 quarters",
+    "gross margin in Q3") — answer those directly — or for a first-pass screen (initial-screen).
+    Use after triage decides the financials warrant a deeper look.'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

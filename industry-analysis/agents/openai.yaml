@@ -1,0 +1,15 @@
+interface:
+  display_name: industry analysis
+  short_description: 'Generates an investor-grade industry memo organized around 5
+    pillars — industry size & growth outlook, competitive dynamics & trends, recent
+    developments & outlook, valuation trend, and scenario view. Trigger: industry
+    outlook, sector analysis, competitive landscape, or what matters most for a sector.
+    Do NOT use for one company''s moat (competitive-position), value-chain profit
+    pools (profit-pool-analysis), or explaining why a sector''s stocks moved (sector-price-driver-patterns).'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

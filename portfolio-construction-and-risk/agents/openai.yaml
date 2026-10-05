@@ -1,0 +1,20 @@
+interface:
+  display_name: portfolio construction and risk
+  short_description: Constructs and risk-manages a long/short-capable portfolio from
+    IC-approved decisions. Applies portfolio + position-level limits, liquidity/borrow
+    gates, correlation caps, and risk overlays. Produces target portfolio, ordered
+    trade list, sizing rationale, and constraint-check report. Trigger phrases — build
+    portfolio, size positions, portfolio construction, risk check, rebalance, apply
+    position limits, portfolio review, add short, cover short. Do NOT use for candidate
+    screening (use `stock-screener`), single-name analysis (use `company-brief`, `initial-screen`,
+    `dcf-modeling`), or IC-level buy/sell/short judgment (made by the user's investment
+    committee outside this library; no skill makes IC decisions). Assumes IC has already
+    approved the BUY/SHORT/COVER/SELL/CANDIDATE/REJECT Decisions; this Skill translates
+    them into a compliant portfolio, not re-litigate underwriting.
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

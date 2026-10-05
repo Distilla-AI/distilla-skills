@@ -1,8 +1,9 @@
 ---
 name: "earnings-preview"
 description: 'Generates an analyst-grade pre-earnings brief covering consensus setup, surprise scenarios, management credibility, and key call questions. Trigger: earnings preview, pre-print setup, what to expect from earnings, or "set me up for [company] earnings". Do NOT use after results are out (earnings-digest) or for consensus revision trend analysis (earnings-revisions).'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.
 
 **Common failure** — using recalled price or consensus figures instead of fetching them; merging the 4 quarterly transcript searches into a single call.
 

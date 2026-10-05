@@ -1,0 +1,17 @@
+interface:
+  display_name: peer benchmarking
+  short_description: Produces a structured peer benchmarking analysis with tables
+    comparing a target company against competitors across financial, valuation, and
+    industry-specific dimensions, with pattern analysis and investment implications.
+    Use when the user asks how a company compares to peers or competitors, requests
+    a peer comparison or competitive benchmarking, wants to evaluate relative valuation
+    or relative margins, or asks how a company "stacks up" on any set of metrics.
+    Do NOT use for moat and rival strategy (competitive-position) or why a multiple
+    re-rated (valuation-compression-recovery).
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

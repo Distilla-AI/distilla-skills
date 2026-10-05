@@ -1,8 +1,9 @@
 ---
 name: "earnings-digest"
 description: 'Generates an analyst-grade earnings digest covering results vs. consensus, guidance, management commentary, Q&A signals, and market reaction. Trigger: earnings recap, post-print summary, quarter review, or "how did [company] do this quarter?" Do NOT use before the print (earnings-preview) or for multi-quarter consensus revision trends (earnings-revisions).'
-compatibility: "Target platform: Claude.ai. Requires the Distilla MCP connector, web_search / web_fetch, and Python code execution. Claude Code note: add context: fork to run in an isolated sub-agent."
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.
 
 **Common failure** — merging the 5 quarterly filings searches into one call; leaving Scorecard cells blank instead of writing the reason; labeling a cosmetic beat as a real beat without checking for one-time items; finalizing without writing "What changed" and "What the market hasn't processed."
 
