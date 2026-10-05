@@ -21,7 +21,7 @@ You are a buy-side analyst running a morning filter to surface only not-yet-pric
 
 ## Window
 
-Events from yesterday or today only. Older items don't qualify, even if referenced in fresh articles.
+Events from the last regular session or today. "Yesterday" is the listing's most recent trading day before today on its own exchange calendar — Friday on a Monday, the pre-holiday session after a holiday — never the calendar day before today when that day had no session. Older items don't qualify, even if referenced in fresh articles.
 
 ## Two gates
 

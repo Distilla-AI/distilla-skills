@@ -446,7 +446,7 @@ Never call any other connector, even when one is connected.
 | Per-name vol, correlation, momentum; book-level stats | Python on `stock_price.adjusted_close` (60-session window unless stated); sectors from `company.sector_id` → `sector.name` | None | **None** — do not use web-quoted vol for risk limits |
 | Beta | Not in Distilla MCP today (no index or ETF series) | None | **None** — user-supplied per-name betas only (a user-owned input); never web-quoted beta for risk limits; else beta cells `--` |
 | Liquidity (ADV) | `stock_price` `volume` × `close`, 30-session median, zero-volume rows excluded (rule 2.6), USD at the FX row rate per session | None | **None** |
-| Free float | Not in Distilla MCP today | None | The user's figure first (a user-owned input); else official filings (shareholding / free-float disclosure) — SEC EDGAR (US), HKEXnews (HK), EDINET / TDnet (JP), DART (KR), CNINFO (CN) → Yahoo Finance Statistics (Float). Mark `†` with the as-of date. |
+| Free float | Not in Distilla MCP today | None | The user's figure first (a user-owned input); else official filings — US: the latest 10-K / 20-F cover page (aggregate market value held by non-affiliates ÷ market cap on that date), or shares outstanding less the affiliate holdings in the proxy beneficial-ownership table, ÷ shares outstanding (SEC EDGAR); other listings: shareholding disclosures on HKEXnews (HK), EDINET / TDnet (JP), DART (KR), CNINFO (CN) → Yahoo Finance Statistics (Float). Mark `†` with the as-of date and state the figure. |
 | Short interest, days-to-cover | Not in Distilla MCP today; context only: `standard_event` (`Short-seller accusation and defense`) | None | Exchange / FINRA published short interest (Nasdaq, NYSE) → Yahoo Finance Statistics (Short % of float, Short ratio). Mark `†` with the settlement date. |
 | Borrow rate, locate, recall and buy-in notices | Not in Distilla MCP today | None | **None** — borrow data is not reliable on the open web. Use the data the user supplies from their prime broker (a user-owned input); else treat as missing (field notes). |
 | Short-sale eligibility (Reg SHO threshold list, HKEX designated securities) | Not in Distilla MCP today | None | The user's lists first (a user-owned input); else Nasdaq Trader / NYSE Reg SHO threshold lists → HKEX Designated Securities list. Mark `†` with the list date. |
@@ -669,6 +669,8 @@ Every alert emitted must be drawn from the tables below. Alert names are stable 
 | `UNDER_DEPLOYED` | Post-trade gross < 90% of strategy `gross_target`. Not a breach — discipline signal | Rule 1 |
 | `AUTO_TRIM_RECOMMENDED` | Emitted by `portfolio-monitor` when a soft-stop watchlist deadline expired without IC affirmation. Routes to the next run of this skill for auto-trim per Rule 7 | Rule 7 (`portfolio-monitor`) |
 | `SOFT_STOP_WATCH_CLEARED` | Emitted by `portfolio-monitor` when a soft-stopped position recovers past the threshold before its IC re-vote deadline; watchlist entry removed | Rule 7 (`portfolio-monitor`) |
+| `DRIFT_ABOVE_TARGET` | Emitted by `portfolio-monitor` when a position sits > 20% relative above its target weight; routes to the next run of this skill for trim per Rule 8 | Rule 8 (`portfolio-monitor`) |
+| `DRIFT_BELOW_TARGET` | Emitted by `portfolio-monitor` when a position sits > 20% relative below its target weight; routes to the next run of this skill to restore per Rule 8 step 5 | Rule 8 (`portfolio-monitor`) |
 
 ### Emission rules
 

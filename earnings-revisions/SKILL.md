@@ -255,10 +255,13 @@ The Revisions Grid and the Dimension Scorecard are standard parts of the output;
   |---|---|
   | Buy the cut | Down cycle, one-off / mean-reverting driver, lead indicators turning, market pricing cut as structural |
   | Ride the up cycle | Up cycle, durable driver, revisions accelerating, market not yet fully pricing |
+  | Priced up cycle | Up cycle, durable driver, revisions rising, market already pricing it (latest close ≥ latest consensus TP, or NTM multiple above its own 3-year average) |
   | Trim into the up cycle | Up cycle but driver fading, multiple stretched, breadth narrowing |
   | Fade the rally | Up cycle with one-off driver, breadth concentrated, valuation already pricing durability |
   | Wait | Down cycle, driver durable, no inflection signal |
   | Inflection catch | Direction turning in 3M but 12M (Δ6M where Δ12M is `--`, stated) still negative, named catalyst, market still pricing the old cycle |
+
+  Test the rows in order; the first that fits is the Condition. When none fits, name the nearest row and the leg that fails (e.g. "Ride the up cycle — market already pricing").
 
   Close with the structured block:
   ```

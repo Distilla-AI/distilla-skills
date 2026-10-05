@@ -240,7 +240,7 @@ Never call any other connector, even when one is connected.
 
 If the analyst target range differs materially from the scenario grid, use the scenario grid — but name the delta in the What could go wrong section as a consensus-positioning signal (grid > analyst range → crowded; grid < analyst range → contrarian).
 
-**Step 8 — Conviction tiering.** Assign each surviving candidate a conviction tier: **High** (multiple confirming signals across the type's diagnostic evidence + contrarian consensus positioning + R/R ≥ 3:1), **Medium** (2 of 3), **Low** (1 of 3 — belongs in Watchlist, not main list). Rank recommendations within each side by `Conviction tier × R/R`.
+**Step 8 — Conviction tiering.** Assign each surviving candidate a conviction tier: **High** (multiple confirming signals across the type's diagnostic evidence + contrarian consensus positioning + R/R ≥ 3:1), **Medium** (2 of 3), **Low** (1 of 3 — belongs in Watchlist, not main list). A card with R/R below 1:1 goes to the Watchlist ("R/R below 1:1") whatever its tier. Rank recommendations within each side by `Conviction tier × R/R`.
 
 ## Recommendation Card — the atomic unit
 
@@ -254,7 +254,7 @@ For pair-trade cards, the thesis names the mechanism causing the spread; the car
 
 Output as Markdown under `# Long / Short Ideas — {criterion label}, {direction}, {depth mode}, {date}`.
 
-- **`Brokers:` line per card (rules 3a / 3h):** every Recommendation Card carries it, in every run, in the depth mode's form (card fields); it sits in the card, not in the Method footnote.
+- **`Brokers:` line per card (rules 3a / 3h):** every Recommendation Card carries it, in every run, in the depth mode's form (card fields); it sits in the card, not in the Method footnote. No separate run-level `Brokers:` line, and never describe the 3a list as "not run" in shortlist mode.
 - **Method footnote** (first, before any recommendations): archetype-classified criterion (one of 8 types), direction (user's literal), depth mode, universe scanned (region / sector / size / index, with N), horizon distribution (X Tactical / Y Medium / Z Structural), conviction distribution (X High / Y Medium — Low ideas belong in Watchlist not here), grid multiple types used (names per type); ≤4 lines (rule 2.7 Method notes).
 
 - **Executive takeaways** (3–5 bullets): each bullet names a specific ticker + direction + one-phrase thesis + quantified R/R. Example: *"Long [Ticker] on [named catalyst] — base case +[X]% by [horizon], R/R [Y]:1, contrarian to consensus [Z]"*. Do NOT emit generic bullets ("we see opportunity in Japan industrials"); every bullet is a named-ticker actionable conclusion. Skip only if pitch mode with a single pair (in which case the Deep-Dive is the takeaway).
@@ -265,7 +265,7 @@ Output as Markdown under `# Long / Short Ideas — {criterion label}, {direction
 
 - **Pair Trades** (if the criterion is the Pair trade type, whatever the direction wording): single-card format naming both legs; each leg has its own invalidation.
 
-- **Watchlist tier** (below main recommendations): candidates that passed thesis validation but cannot enter the main list — no date-anchored catalyst, Low conviction, R/R `--` (a missing grid input; REITs), a short with SI and days-to-cover both unretrievable, or a prohibitive squeeze — each with its reason. Kept visible so the PM knows what's queued up. Move to main tier when the blocking reason clears.
+- **Watchlist tier** (below main recommendations): candidates that passed thesis validation but cannot enter the main list — no date-anchored catalyst, Low conviction, R/R `--` (a missing grid input; REITs), R/R below 1:1, a short with SI and days-to-cover both unretrievable, or a prohibitive squeeze — each with its reason. Kept visible so the PM knows what's queued up. Move to main tier when the blocking reason clears.
 
 - **What's not in this list** (transparency block): (a) consensus-crowded trades (named + reason for exclusion), (b) failed-validation candidates (named + which retrieved disclosure contradicted the setup), (c) shorts with prohibitive borrow or unavailable data (named). This section is mandatory — the reader must see what was considered and dropped.
 
@@ -307,7 +307,7 @@ Checks:
 
 9a. **Cyclical macro-corroboration** — for every card classified as Cyclical, one sub-sector-appropriate macro indicator (ISM PMI new-orders, AAR carloads, WSTS billings, Dodge Momentum, chemical activity barometer, etc.) has been retrieved from the Macro row (Distilla first, then official statistics); the indicator's latest reading + direction is stated and either corroborates the company-level cycle signal, or the mismatch is explicitly named in What could go wrong. Cyclical cards without a macro cross-check FAIL.
 10. **Horizon labeled per card + never mixed within a card** — every card carries one tier only. Ideas that combine tactical + structural elements are split into two cards or one is dropped.
-11. **Watchlist tier populated** — every validated idea blocked from the main list (no date-anchored catalyst, Low conviction, R/R `--`, SI and DTC both missing, prohibitive squeeze) appears here with its reason, not in main recommendations. The tier is present (may be empty with an explicit "none" statement).
+11. **Watchlist tier populated** — every validated idea blocked from the main list (no date-anchored catalyst, Low conviction, R/R `--`, R/R below 1:1, SI and DTC both missing, prohibitive squeeze) appears here with its reason, not in main recommendations. The tier is present (may be empty with an explicit "none" statement).
 12. **"What's not in this list" section present** — names the consensus-crowded excluded trades, the failed-validation candidates, and the borrow-prohibitive shorts. Transparency of what was considered and dropped.
 13. **Source + as-of-date:** the Output format rule holds for every quantitative claim — no orphan numbers, no fabricated values.
 14. **Executive takeaways state named-ticker conclusions** (except pitch-mode single-pair) — 3–5 bullets, each with a specific ticker + direction + thesis phrase + quantified R/R + horizon. No generic "we see opportunity in X" bullets.

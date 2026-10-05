@@ -76,7 +76,7 @@ Six categories of red flags ordered by severity. Work through these systematical
 - CFO turnover within 90 days of a restatement, regulatory action, or guidance miss
 - Confirmed channel stuffing, premature revenue recognition, or cash flow misclassification
 
-**Material (High) when 2+ co-occur:**
+**Material (High) when 2+ co-occur** — before testing, strip any disclosed one-off item (a single receivable, charge or gain the filing identifies) out of each signal and state the adjusted figure beside the reported one; only signals that still breach count:
 - DSO at 5-year high
 - Inventory growth > 2× revenue growth for 4+ quarters
 - OCF / Net income gap widened > 20 percentage points over 2 years
@@ -301,7 +301,7 @@ Work through the following before writing any section — this is a thinking fra
   
   Assess: where has cash been deployed? Has M&A earned a return (ROIIC on acquisitions vs. WACC)? Has buyback timing been counter-cyclical (good) or pro-cyclical (bad)? Is the dividend sustainable at current payout ratio?
 
-- **Accounting Red Flags:** internally work through all 6 categories in `## Accounting Irregularities Reference`, applying the Severity rules mechanically (do not soften automatic Material triggers to Medium). In the output, present findings as analyst narrative grouped by what was found — name each flag, its severity per the rules, and the evidence from the latest reported period. **Do not expose internal category letters (A–F) or category names in the output.** Highlight clustering of flags pointing the same direction. If clean, state "no material concerns identified after systematic check." Close with: `Accounting Quality: [Clean / Minor Concerns / Material Concerns] — [one-phrase reason]` per the verdict rules in the Reference.
+- **Accounting Red Flags:** internally work through all 6 categories in `## Accounting Irregularities Reference`, applying the Severity rules mechanically (do not soften automatic Material triggers to Medium). In the output, present findings as analyst narrative grouped by what was found — name each flag, its severity per the rules, and the evidence from the latest reported period — for a co-occurrence signal adjusted for a disclosed one-off, both the reported and the adjusted figure. **Do not expose internal category letters (A–F) or category names in the output.** Highlight clustering of flags pointing the same direction. If clean, state "no material concerns identified after systematic check." Close with: `Accounting Quality: [Clean / Minor Concerns / Material Concerns] — [one-phrase reason]` per the verdict rules in the Reference.
 
 - **Forward Setup & Watch Items:** based on the observed trends across statements, expected trajectory of revenue, margins, FCF, and leverage over the next 4–8 quarters. Identify 3–5 specific watch items (data points or events) that would confirm or invalidate the trajectory — these are the items an analyst would prioritize on the next earnings call or filing.
 

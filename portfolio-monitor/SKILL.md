@@ -64,7 +64,7 @@ All overlay rules are inherited from `portfolio-construction-and-risk` Rule 7 (s
 |---|---|---|---|
 | **Long soft stop** | Position falls > 25% from cost basis | `SOFT_STOP` + `IC_REVOTE_REQUESTED` | Route to Today inbox. Start 5-trading-day IC re-vote clock |
 | **Long hard stop** | Position falls > 35% from cost basis | `HARD_STOP` | Recommend immediate exit at the next `portfolio-construction-and-risk` run (or emergency rebalance if drop is intraday). Unless a pre-committed IC override exists |
-| **Drift (long or short)** | Position drifts > 20% relative from its target weight (Rule 8) | No Appendix A alert in either direction — `POSITION_TRIMMED` is emitted by `portfolio-construction-and-risk` when it trims | Above: route to the next `portfolio-construction-and-risk` run for trim per Rule 8. Below: recommendation only — restore at the next rebalance (Rule 8 step 5) |
+| **Drift (long or short)** | Position drifts > 20% relative from its target weight (Rule 8) | Above: `DRIFT_ABOVE_TARGET`. Below: `DRIFT_BELOW_TARGET` (`POSITION_TRIMMED` is emitted only by `portfolio-construction-and-risk` when it trims) | Above: route to the next `portfolio-construction-and-risk` run for trim per Rule 8. Below: restore at the next rebalance (Rule 8 step 5) |
 | **Single-name drift ceiling** | Long > 7% at market (10% high-conviction); short > 4% at market (5% high-conviction) (Rule 2) | `SINGLE_NAME_CAP_BREACHED` | Forced trim at the next `portfolio-construction-and-risk` run |
 
 **Shorts (mirrors construction Rule 7 short-side table with ADDITIONAL squeeze layer):**
@@ -152,6 +152,7 @@ Each alert has a designated audience:
 | `DRAWDOWN_GATE_*`, `VOLATILITY_CEILING_BREACHED`, `BETA_DRIFT_ALERT` | **PM + Chair Today inbox** | Same day |
 | `*_CAP_BREACHED` on Rule 4 concentration | **PM Today inbox** — routed to the next `portfolio-construction-and-risk` run | Same day (rebalance queued) |
 | `*_NEAR_LIMIT` warnings | **PM daily digest** | Batched into daily summary |
+| `DRIFT_ABOVE_TARGET`, `DRIFT_BELOW_TARGET` | **PM daily digest** — routed to the next `portfolio-construction-and-risk` run | Batched into daily summary |
 | `UNDER_DEPLOYED` | **PM + IC weekly digest** | Weekly batched |
 | `REG_SHO_RULE_201` | **Trading desk only** — no PM action required | Same day |
 | `AUTO_TRIM_RECOMMENDED` (from expired watch) | **`portfolio-construction-and-risk` queue** for next rebalance | Next rebalance |
@@ -270,7 +271,7 @@ Never call any other connector, even when one is connected.
    - `RECOMMENDED_ACTION`: exit / trim / IC re-vote / continue holding
    - `DEADLINE`: if applicable (e.g., "IC must affirm by 2026-07-21")
 
-**Post-scan reconciliation:** the alerts array and the recommendations block MUST agree. A `HARD_STOP` alert requires an exit recommendation. A `SOFT_STOP` alert requires either "IC re-vote pending (day N of Y)" or "IC affirmed" as the recommendation state. The only recommendation without an alert is drift in either direction (no Appendix A drift alert; `POSITION_TRIMMED` and `POSITION_EXITED` record completed trades and are emitted only by `portfolio-construction-and-risk`, never by this skill).
+**Post-scan reconciliation:** the alerts array and the recommendations block MUST agree. A `HARD_STOP` alert requires an exit recommendation. A `SOFT_STOP` alert requires either "IC re-vote pending (day N of Y)" or "IC affirmed" as the recommendation state. Drift in either direction emits its drift alert (`DRIFT_ABOVE_TARGET` / `DRIFT_BELOW_TARGET`) beside its recommendation; `POSITION_TRIMMED` and `POSITION_EXITED` record completed trades and are emitted only by `portfolio-construction-and-risk`, never by this skill.
 
 **Method notes:** ≤4 lines after the JSON — data sources, scan date, FX dates, user-supplied inputs and any `N/A (input missing)` overlay.
 
