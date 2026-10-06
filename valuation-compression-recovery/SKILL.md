@@ -1,8 +1,6 @@
 ---
 name: "valuation-compression-recovery"
 description: Diagnoses why a target company's valuation multiple has compressed or recovered over a stated lookback — attributes the move to company-specific, financial, and macro drivers; decomposes stock Δ into multiple Δ × estimate Δ; separates company-specific from sector-wide rerating. Trigger phrases — multiple compression, re-rating, valuation derating, multiple recovery, mean-reversion thesis, P/E compression, EV/EBITDA expansion, what's needed for the multiple to recover, what's priced in at current multiple. Do NOT use for intrinsic value (dcf-modeling) or a point-in-time peer multiple table (peer-benchmarking).
-metadata:
-  required_sections: Executive Summary; Valuation Multiple Trend Overview|Trend Overview; Attribution Analysis; Current Position; Forward Setup; Synthesis|Conclusion; Caveats; Investment Signal
 ---
 
 **Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.

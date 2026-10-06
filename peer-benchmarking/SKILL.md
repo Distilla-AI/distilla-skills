@@ -1,8 +1,6 @@
 ---
 name: "peer-benchmarking"
 description: Produces a structured peer benchmarking analysis with tables comparing a target company against competitors across financial, valuation, and industry-specific dimensions, with pattern analysis and investment implications. Use when the user asks how a company compares to peers or competitors, requests a peer comparison or competitive benchmarking, wants to evaluate relative valuation or relative margins, or asks how a company "stacks up" on any set of metrics. Do NOT use for moat and rival strategy (competitive-position) or why a multiple re-rated (valuation-compression-recovery).
-metadata:
-  required_sections: Benchmarking summary; Peer set; Relative positioning scorecard; Investment implications
 ---
 
 **Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.

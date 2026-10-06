@@ -1,8 +1,6 @@
 ---
 name: "industry-analysis"
 description: 'Generates an investor-grade industry memo organized around 5 pillars — industry size & growth outlook, competitive dynamics & trends, recent developments & outlook, valuation trend, and scenario view. Trigger: industry outlook, sector analysis, competitive landscape, or what matters most for a sector. Do NOT use for one company''s moat (competitive-position), value-chain profit pools (profit-pool-analysis), or explaining why a sector''s stocks moved (sector-price-driver-patterns).'
-metadata:
-  required_sections: Industry Memo Verdict; Industry Size & Growth Outlook|Industry Size; Competitive Dynamics; Recent Developments; Valuation Trend; Scenario View; Investor Action Signal; Monitoring Dashboard
 ---
 
 **Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.
