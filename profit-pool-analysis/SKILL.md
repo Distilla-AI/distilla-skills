@@ -1,8 +1,6 @@
 ---
 name: "profit-pool-analysis"
 description: 'Generates an investor-grade value chain analysis covering industry structure, profit pool mapping, upstream/downstream power dynamics, and supply chain risks. Trigger: value chain analysis, supply chain analysis, profit pool, upstream/downstream dynamics, industry structure, where does margin sit, or "which part of the value chain should I own". Do NOT use for one company''s channel mix (distribution-channels) or its supplier dependency risk (supply-chain-resilience).'
-metadata:
-  required_sections: Supply Chain Verdict; Value Chain Map; Upstream Analysis|Upstream; Peer Tier Analysis|Horizontal; Downstream Analysis|Downstream; Profit Pool Migration; Tier Cycle Sensitivity; Supply Chain Risks; Near-Term Catalysts|Catalysts; Monitoring Dashboard
 ---
 
 **Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.

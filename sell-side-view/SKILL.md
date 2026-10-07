@@ -1,8 +1,6 @@
 ---
 name: "sell-side-view"
 description: Single-company deep-dive memo on the sell-side view of ONE named stock, built from recent research reports — a full broker coverage table (rating, target, estimates per broker), narrative shifts, where analysts disagree, what the Street may be missing, and per-broker valuation methodology. Use when the user asks about one specific company for a sell-side consensus read, analyst view summary, that company's recent broker upgrades/downgrades, 'walk me through analyst coverage on X', or Street opinion on X. If several tickers are given, produce one full memo per company. Do NOT use for a multi-company, sector, region, theme or watchlist digest, or for any request that says 'sell-side brief', 'broker brief', 'research brief' or '/sell-side-brief' (use `sell-side-brief`).
-metadata:
-  required_sections: Broker Coverage; Narrative Shifts; Where They Diverge; What the Street May Be Missing; Valuation Methodology
 ---
 
 **Runtime requirements:** Requires Distilla MCP tools and Python code execution. Distilla-only data mode; web access is permitted only for the documented FX conversion exception. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary.

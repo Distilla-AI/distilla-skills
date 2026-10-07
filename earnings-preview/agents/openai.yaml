@@ -1,0 +1,14 @@
+interface:
+  display_name: earnings preview
+  short_description: 'Generates an analyst-grade pre-earnings brief covering consensus
+    setup, surprise scenarios, management credibility, and key call questions. Trigger:
+    earnings preview, pre-print setup, what to expect from earnings, or "set me up
+    for [company] earnings". Do NOT use after results are out (earnings-digest) or
+    for consensus revision trend analysis (earnings-revisions).'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

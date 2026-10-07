@@ -1,0 +1,19 @@
+interface:
+  display_name: earnings revisions
+  short_description: 'Analyzes the trend, drivers, sustainability, and forward trajectory
+    of consensus earnings revisions for a target company or a 2–5 peer cohort. Fetches
+    forward consensus across FY+0 / FY+1 / FY+2 for Revenue, EPS, EBITDA, FCF; decomposes
+    revisions into fundamental drivers; tests driver durability; predicts the next-leg
+    direction. Sector-agnostic with sub-sector calibration (cyclicals / defensive
+    / growth / commodity / financials / real estate & REITs). Trigger: earnings revisions,
+    estimate revisions, consensus trend, revision momentum, "are estimates moving
+    up/down for [company]", "is the cut/raise sustainable", "compare revision trends
+    across [Co A, Co B]". Do NOT use for a single-quarter pre-print setup (earnings-preview)
+    or a post-print recap (earnings-digest).'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

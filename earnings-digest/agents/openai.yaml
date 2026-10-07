@@ -1,0 +1,14 @@
+interface:
+  display_name: earnings digest
+  short_description: 'Generates an analyst-grade earnings digest covering results
+    vs. consensus, guidance, management commentary, Q&A signals, and market reaction.
+    Trigger: earnings recap, post-print summary, quarter review, or "how did [company]
+    do this quarter?" Do NOT use before the print (earnings-preview) or for multi-quarter
+    consensus revision trends (earnings-revisions).'
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

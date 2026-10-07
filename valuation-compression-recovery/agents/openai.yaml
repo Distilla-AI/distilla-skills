@@ -1,0 +1,17 @@
+interface:
+  display_name: valuation compression recovery
+  short_description: Diagnoses why a target company's valuation multiple has compressed
+    or recovered over a stated lookback — attributes the move to company-specific,
+    financial, and macro drivers; decomposes stock Δ into multiple Δ × estimate Δ;
+    separates company-specific from sector-wide rerating. Trigger phrases — multiple
+    compression, re-rating, valuation derating, multiple recovery, mean-reversion
+    thesis, P/E compression, EV/EBITDA expansion, what's needed for the multiple to
+    recover, what's priced in at current multiple. Do NOT use for intrinsic value
+    (dcf-modeling) or a point-in-time peer multiple table (peer-benchmarking).
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
