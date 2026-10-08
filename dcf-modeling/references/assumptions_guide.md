@@ -121,7 +121,7 @@ the script fill a flagged default. Record the source text for every live value.
 | Input | Search for | Fallback |
 |---|---|---|
 | Risk-free rate | "<country> 10-year government bond yield" (today's date) | country table in prepare_inputs.py (US, KR verified Sep 2026; others rough) |
-| Beta | full `web_search`: "<ticker> beta 5Y monthly"; record all 5Y figures in `beta_published` | median → Blume-adjusted (⅔·raw + ⅓) → if >40% from relevered sector beta, 50/50 blend + flag; none found → sector beta |
+| Beta | full web search: "<ticker> beta 5Y monthly"; record all 5Y figures in `beta_published` | median → Blume-adjusted (⅔·raw + ⅓) → if >40% from relevered sector beta, 50/50 blend + flag; none found → sector beta |
 | ERP | "Damodaran implied equity risk premium <month year>" | 4.23% mature market (Damodaran, start of 2026) |
 | Country risk premium | only for non-US; "<country> country risk premium" | table in prepare_inputs.py |
 | Cost of debt | credit rating or bond yields if easy to find | historical interest ÷ average debt if above rf, else rf + 150bp |

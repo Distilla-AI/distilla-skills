@@ -13,7 +13,7 @@ blue assumption inputs.
 Build order mirrors how the model works:
   Raw Data -> historical IS / BS / CF (links) -> Assumptions -> Schedules
   -> forecast IS / BS / CF (cash is the balancing item) -> DCF -> Sensitivity -> Checks -> Summary
-After building, run the xlsx skill's recalc.py, then check_model.py.
+After building, run recalc.py (or the host's spreadsheet recalculation tool), then check_model.py.
 """
 import json
 import sys

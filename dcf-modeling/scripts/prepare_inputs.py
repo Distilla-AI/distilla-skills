@@ -5,7 +5,7 @@ prepare_inputs.py - turn raw Distilla pulls into a clean model_inputs.json.
 Usage:
     python prepare_inputs.py raw.json model_inputs.json [--years N]
 
-raw.json is written by Claude from Distilla MCP results (see references/distilla_queries.md
+raw.json is written by the assistant from Distilla MCP results (see references/distilla_queries.md
 for the exact schema). This script:
   1. parses Distilla's text numbers ("333,605,938.00", "-" = missing)
   2. aligns annual actuals by fiscal-year end date
@@ -13,7 +13,7 @@ for the exact schema). This script:
   4. computes historical ratios
   5. drafts Base / Bull / Bear assumptions (consensus-anchored, fading to steady state)
   6. fills WACC inputs, using defaults (and flagging them) where live values are missing
-It prints a human-readable assumptions summary for Claude to present to the user.
+It prints a human-readable assumptions summary for the assistant to present to the user.
 Nothing here is final: the user confirms or edits model_inputs.json before build_model.py runs.
 """
 import json
@@ -293,7 +293,7 @@ def main():
     if ncons == 0:
         flags.append("NO CONSENSUS: forecast drafted from historical trends only.")
 
-    # ---------- WACC inputs (live values from raw['wacc'] if Claude found them)
+    # ---------- WACC inputs (live values from raw['wacc'] if the assistant found them)
     W = raw.get("wacc", {})
     mkt = raw["market"]
     bridge = raw["bridge"]
@@ -462,7 +462,7 @@ def main():
         scen[name] = {"revenue_growth": fade(g_, N, g_term), "ebit_margin": fade(m_, N, steady(m_[-1])[0])}
 
 
-    # ---------- Evidence-based anchors (set by Claude AFTER the evidence step; see
+    # ---------- Evidence-based anchors (set by the assistant AFTER the evidence step; see
     # references/evidence_guide.md). An anchor replaces a mechanical path only where the user or
     # the evidence gives a reason. Every key number gets a basis label so nothing is dressed up.
     anchors = raw.get("anchors") or {}
@@ -698,7 +698,7 @@ def main():
         "notes": [TERMINAL_FADE_NOTE],
         "basis": basis,
         "reference_points": reference_points,
-        "evidence": [],  # filled by Claude in the evidence step (see references/evidence_guide.md)
+        "evidence": [],  # filled by the assistant in the evidence step (see references/evidence_guide.md)
         "flags": flags,
     }
     # evidence and user-confirmed policies live in raw.json so re-drafting never loses them

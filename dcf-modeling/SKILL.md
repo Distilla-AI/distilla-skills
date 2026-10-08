@@ -1,8 +1,9 @@
 ---
-name: distilla-dcf-model
+name: dcf-modeling
 description: Build a full 3-statement financial model (income statement, balance sheet, cash flow) and a DCF valuation in Excel with live formulas, using Distilla MCP data (actuals, consensus estimates, prices) for US, Korean, Japanese, Chinese and Hong Kong listed companies. Use this skill whenever the user asks to value a company, build a DCF, do a discounted cash flow, build a 3-statement or three-statement model, estimate intrinsic or fair value, work out what a stock is worth, or asks for a financial model or valuation model of a listed company, even if they don't say "DCF" or "Distilla". Also use it for bull/bear/base scenario valuations, WACC-and-terminal-growth sensitivity tables, or updating a model built earlier with this skill.
-compatibility: Requires the Distilla MCP connector, web search, and the xlsx skill (recalc.py) with Python + openpyxl.
 ---
+
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary. Building the workbook needs Python with openpyxl; recalculation uses the host's spreadsheet recalculation tool if it has one, else `scripts/recalc.py` (Python `formulas` package).
 
 # Distilla 3-statement + DCF model
 
@@ -10,8 +11,8 @@ Builds a banker-style Excel model from Distilla data. The 3-statement model come
 DCF sits on top of it, so free cash flow is *derived* from the forecast statements, never typed
 in. Change one assumption and it flows through all three statements into the valuation.
 
-The workflow has one deliberate pause: Claude drafts assumptions, **the user confirms or edits
-them**, then Claude builds. A DCF is only as credible as its assumptions, and the mechanical
+The workflow has one deliberate pause: the assistant drafts assumptions, **the user confirms or edits
+them**, then the assistant builds. A DCF is only as credible as its assumptions, and the mechanical
 draft misses things only the user can judge (for example, whether a peak-cycle margin is
 structural).
 
@@ -20,6 +21,8 @@ structural).
 - `scripts/prepare_inputs.py` — cleans Distilla output, drafts Base/Bull/Bear assumptions, fills
   flagged WACC defaults, prints the checkpoint summary.
 - `scripts/build_model.py` — writes the live-formula workbook (7 tabs).
+- `scripts/recalc.py` — recalculates the workbook in Python (`formulas` package) when the host has
+  no spreadsheet recalculation tool.
 - `scripts/check_model.py` — independent post-recalc verification.
 - `references/distilla_queries.md` — **read before querying**: exact query recipes, the 56
   metrics, the raw.json schema, data gotchas.
@@ -51,15 +54,15 @@ the company name and `company.summary` too.
 ## Workflow
 
 ### 1. Pull the data
-Load the Distilla tools (`tool_search` "distilla" if deferred). Follow
+Load the Distilla tools (if tool loading is deferred, use the host's discovery mechanism). Follow
 `references/distilla_queries.md` in order: company and sector → annual actuals (one query) →
 latest quarterly balance sheet → consensus → price. Run the §6 sanity checks, especially
 consensus units against quarterly actuals, price vs reporting currency, and the accounting
 standard (it decides how leases are treated).
 
 ### 2. Source WACC inputs live
-Use the full `web_search` tool here, not `web_search_fast`: in testing the fast tool returned no
-betas, while the full tool found them on the first try for all four test companies.
+Use the host's full web search here, not a fast or lite variant: in testing a fast search tool
+returned no betas, while the full one found them on the first try for all four test companies.
 - **Risk-free rate:** 10-year government bond in the **reporting currency** (BYD is HK-listed but
   reports in CNY, so China's yield).
 - **Beta:** search "<ticker> beta 5Y monthly" and record every 5-year figure you find (Yahoo,
@@ -127,10 +130,9 @@ Edit `model_inputs.json` directly. Useful keys:
 To change the horizon, rerun prepare_inputs.py with `--years N` (this redrafts, so reapply edits).
 
 ### 7. Build, recalculate, verify
-Read the xlsx skill's SKILL.md first (environment requirement). Then:
 ```bash
 python <skill_dir>/scripts/build_model.py model_inputs.json <Company>_DCF.xlsx
-python /mnt/skills/public/xlsx/scripts/recalc.py <Company>_DCF.xlsx 90
+python <skill_dir>/scripts/recalc.py <Company>_DCF.xlsx
 python <skill_dir>/scripts/check_model.py <Company>_DCF.xlsx model_inputs.json
 ```
 recalc must report `total_errors: 0` and check_model must not report FAIL. A clean recalc only
@@ -138,14 +140,21 @@ proves formulas evaluate; check_model proves the balance sheet balances, history
 Distilla, and the DCF arithmetic is right. Fix the cause of any failure and rebuild; don't ship a
 workbook that fails either check. Warnings are fine to ship, but mention them.
 
+If the host has its own spreadsheet recalculation tool (for example an xlsx skill's `recalc.py`),
+it may replace the second line. `recalc.py` needs the Python `formulas` package; install it if it
+is missing. If no recalculation is possible, deliver the workbook marked "not recalculated or
+verified here; values compute when opened in Excel or Google Sheets", give no value per share in
+chat, and say why.
+
 ### 8. Deliver
-Save to `/mnt/user-data/outputs/` and call `present_files`. Then a short summary in prose:
+Save the workbook where the host delivers files and share it with the user (attach, link or
+present it through the host's file mechanism). Then a short summary in prose:
 value per share (all three scenarios) against the current price and consensus target, **what the
 price implies** (reverse DCF: perpetual growth or margin needed), the two or three inputs that
 drive the answer and the evidence behind them, the terminal-multiple cross-check, any warnings, and how to use the
 workbook (blue cells are inputs; scenario switch at the top of Assumptions; sensitivity tab).
-Present the value as the output of stated assumptions, not a recommendation. Claude isn't a
-financial advisor, and the user makes the call.
+Present the value as the output of stated assumptions, not a recommendation. The assistant isn't
+a financial advisor, and the user makes the call.
 
 ## The workbook
 

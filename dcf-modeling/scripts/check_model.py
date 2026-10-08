@@ -5,7 +5,7 @@ check_model.py - verify a recalculated model and print the key outputs.
 Usage:
     python check_model.py model.xlsx [model_inputs.json]
 
-Run AFTER the xlsx skill's recalc.py (openpyxl-written formulas have no values until then).
+Run AFTER recalc.py or the host's recalculation tool (openpyxl-written formulas have no values until then).
 Checks are done independently in Python from the recalculated values, not by trusting the
 workbook's own Checks tab:
   - every year's balance sheet balances
