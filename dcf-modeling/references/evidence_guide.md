@@ -34,8 +34,8 @@ query_entity(entity="company_drivers",
   select=["symbol","updated_at","content"], limit=1)
 ```
 
-**Broker coverage (rule 3a)** — list first, then read every broker found (its most relevant recent
-note, else its latest):
+**Broker coverage (rule 3a)** — list first, group the documents by their `broker` field, then read
+each broker's most relevant recent note (else its latest) — one read per broker, not per document:
 ```
 search_public_library(query="<company>", mode="list", date_range="90d", doc_types=["Research"],
   tickers=["<ticker>"])

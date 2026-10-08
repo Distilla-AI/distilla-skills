@@ -162,8 +162,8 @@ Never call any other connector, even when one is connected.
 - **Beta** per the Beta row (median of published 5Y betas, Blume-adjusted, sector-checked), never one source picked by hand.
 - **Banks, insurers, lenders:** no build — "When not to build a DCF" names what fits instead.
 - **Bridge balances:** cash, long-term investments, debt, leases and minority interest at the latest reported quarter in the reporting currency; shares per the Diluted shares (bridge) row; market cap = price × FX × diluted shares (rule 2.3 rebuild), cross-checked against `stock_price.market_cap` (USD, rule 2.6) — a gap over 10% is flagged, and the vendor value is never the input.
-- **Finance arm** (a finance segment whose assets are ≥ 10% of total assets): the DCF values the industrial business only — the finance segment's pre-tax profit comes out of EBIT and its receivables growth out of the cash flow, its debt and long-term finance receivables out of the bridge — and the finance arm is added back at book equity × justified P/B = (ROE − g) ÷ (cost of equity − g), bounded 0.5–2.5×. Its own cash comes out of bridge cash and its leased assets' net investment out of the cash flow; beta is the published Blume-adjusted beta, without the sector check (finance debt funds low-risk receivables). A missing input falls back to 1.0× book, labelled a default in the workbook and the summary.
-- **Pensions and recurring charges:** the net pension and retiree-benefit deficit is deducted in the bridge after tax (a surplus is not added); recurring charges (the company's adjusted-minus-reported EBIT, averaged) come off every consensus-derived margin, so the forecast is on the reported basis. Neither is in Distilla: annual report, `†`.
+- **Finance arm** (a finance segment whose assets are ≥ 10% of total assets): the DCF values the industrial business only — the finance segment's pre-tax profit comes out of EBIT and its receivables growth out of the cash flow, its debt and long-term finance receivables out of the bridge — and the finance arm is added back at book equity × justified P/B = (ROE − g) ÷ (cost of equity − g), bounded 0.5–2.5×. Its own cash comes out of bridge cash, and its assets leased to customers are held flat in PP&E (post-consensus capex and D&A run on the rest); beta is the published Blume-adjusted beta, without the sector check (finance debt funds low-risk receivables). A missing input falls back to 1.0× book, labelled a default in the workbook and the summary.
+- **Pensions and recurring charges:** the net pension and retiree-benefit deficit is deducted in the bridge after tax (a surplus is not added); recurring charges (the company's adjusted EBIT minus Distilla's EBIT for the same year, the median of up to 3 years) come off every consensus-derived margin, so the forecast is on Distilla's history basis. Neither is in Distilla: annual report, `†`.
 - **Pre-flight KU check (rule 2.1 #1)** covers `by_segment_financials`, `cash_and_debt` and the evidence units named in `references/evidence_guide.md`.
 - **Terminal multiple cross-check (3e):** the implied terminal EV/EBITDA against the company's own 3-year `valuation_multiple` `NTM_Ev_Ebitda_Med_W` average, low and high (`aggregate_entity`, latest value spot-checked per rule 2.4); none returned → `--` with the call named. State the vendor EV basis the spot-check finds (with or without a finance arm's debt).
 
@@ -206,7 +206,9 @@ standard (it decides how leases are treated).
 **Finance arm.** Read `by_segment_financials` (section 5b of distilla_queries.md). When a finance
 segment's assets are 10% or more of total assets (Caterpillar Financial Products, Deere Financial
 Services, GM Financial, Ford Credit), fill `raw.json["finance_arm"]`: revenue, pre-tax profit and
-assets from Distilla; from the latest annual report (official filings, `†`): finance receivables
+assets from Distilla (assets from the filing where the segment data has none); from the latest filing
+that shows the finance arm separately — the 10-Q nearest the bridge date, else the annual report
+(official filings, `†`): finance receivables
 (current and long-term, as shown on the consolidated balance sheet), the finance arm's debt and
 equity (its own column after eliminations), its own cash, and assets leased to customers (inside
 PP&E). Else the Distilla leverage text; else leave them `null`. The script values the finance arm
@@ -214,9 +216,9 @@ separately; see the field notes.
 
 **Pensions and recurring charges** (every company). From the annual report: the net pension and
 retiree-benefit deficit (`bridge.pension_deficit`, pre-tax; 0 when funded). If the company reports
-an adjusted operating profit that consensus follows, the adjusted-minus-reported EBIT gap for up to
-the last 3 years (`recurring_charges.by_year`); the script deducts the average from every
-consensus-derived margin. The script flags a consensus margin far above the last reported one.
+an adjusted operating profit that consensus follows, that adjusted EBIT for up to the last 3 years
+(`recurring_charges.adjusted_by_year`); the script measures it against Distilla's own EBIT for the
+same years and deducts the median gap from every consensus-derived margin. The script flags a consensus margin far above the last reported one.
 
 **Fetching filings and pages:** only with the host's page-fetch tool. Never download pages with
 code (`curl`, Python requests) and never send the user's name, email or other details in a request.
@@ -254,8 +256,9 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
 `references/evidence_guide.md`:
 1. **Gather evidence before deciding**: one `company_drivers` query; the rule 3a broker list
    (`search_public_library` `mode="list"`, `date_range="90d"`, `doc_types=["Research"]`, the
-   ticker), reading every broker found with `get_library_document` (rating, target price, date —
-   all brokers, never a sample); then 2–3 *neutral* `search_public_library` `mode="synthesize"` questions ("when
+   ticker); group the list by its `broker` field and read each broker's most relevant recent note
+   (else its latest) with `get_library_document` (rating, target price, date — all brokers, never a
+   sample); then 2–3 *neutral* `search_public_library` `mode="synthesize"` questions ("when
    does the shortage end?", not "confirm the margin"). Add the own-history multiple for the
    terminal cross-check: `aggregate_entity` on `valuation_multiple`, type `NTM_Ev_Ebitda_Med_W`,
    last 3 years, AVG / MIN / MAX, into `raw.json["multiple_history"]`.

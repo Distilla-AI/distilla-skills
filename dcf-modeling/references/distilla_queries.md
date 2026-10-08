@@ -146,11 +146,12 @@ query_entity(entity="ku_cell",
 Look for a finance segment (Financial Products, Financial Services, GM Financial, Ford Credit,
 Toyota Financial Services). If its assets are 10% or more of total assets, fill `finance_arm`:
 - **From Distilla** (`by_segment_financials`, the fiscal year matching the last actual year): segment
-  revenue, pre-tax segment profit, segment assets. Parse the content in Python. Periods are
+  revenue, pre-tax segment profit, segment assets (from the filing when the cell has none). Parse the content in Python. Periods are
   year-to-date and sometimes mislabelled (a 9-month cell tagged `quarter`), labels vary by filing, and
   labels with commas shift the columns ("Selling, general and administrative" splits) — check each
   value against the cell's period and unit before using it.
-- **From the annual report** (official filings, `†` with the as-of date): the supplemental
+- **From the latest filing that shows the finance arm separately** (the 10-Q nearest the bridge date,
+  else the annual report; official filings, `†` with the as-of date): the supplemental
   consolidating data or the finance segment's balance sheet. Finance receivables, current and
   long-term: the consolidated balance sheet lines. Debt, equity and cash: the finance arm's own column
   after intercompany eliminations. Assets leased to customers (equipment on operating leases, leased
@@ -197,7 +198,7 @@ Toyota Financial Services). If its assets are 10% or more of total assets, fill 
           "crp":null,"crp_source":"","kd_pretax":null,"terminal_growth":null,
           "beta_published":[1.09,0.92],"beta_published_sources":"Yahoo 5Y monthly 1.09; GuruFocus 0.92"},
  "long_history": {"income_statement_sales": {...}, "income_statement_ebit_operating_income": {...}},
- "recurring_charges": {"by_year": {"2025": 0, "2024": 0, "2023": 0}, "source": ""},   // adjusted - reported EBIT; omit when none
+ "recurring_charges": {"adjusted_by_year": {"2025": 0, "2024": 0, "2023": 0}, "source": ""},   // company-adjusted EBIT; omit when none
  "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0},
  "finance_arm": {"name":"","period":"YYYY-MM-DD","segment_source":"","revenue":0,"profit_pretax":0,"assets":0,
                  "st_receivables":null,"lt_receivables":null,"debt":null,"equity":null,"cash":null,

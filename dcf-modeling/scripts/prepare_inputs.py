@@ -378,10 +378,11 @@ def main():
             fa["profit_pct"] = fa["profit"] / rev[-1] if rev[-1] else 0.0
             ppe_last = s0("balance_sheet_net_property_plant_and_equipment")[-1]
             if fa_raw.get("leased_assets") is not None and ppe_last:
-                fa["ppe_share"] = clamp(fa_raw["leased_assets"] / ppe_last, 0.0, 1.0)
-                fa["ppe_share_basis"] = f"assets leased to others {fa_raw['leased_assets']:,.0f} / net PP&E {ppe_last:,.0f} ({bs_src})"
+                fa["leased"] = min(fa_raw["leased_assets"], ppe_last)
+                fa["leased_basis"] = (f"assets leased to customers inside net PP&E {ppe_last:,.0f} ({bs_src}); held flat - "
+                                      "post-consensus capex and D&A run on the rest")
             else:
-                fa["ppe_share"], fa["ppe_share_basis"] = 0.0, "no leased assets found in PP&E"
+                fa["leased"], fa["leased_basis"] = 0.0, "no leased assets found in PP&E"
             if fa_raw.get("cash") is not None:
                 fa["cash"] = min(fa_raw["cash"], bridge.get("cash", 0))
                 fa["cash_basis"] = fa_raw.get("cash_source") or bs_src
@@ -524,22 +525,29 @@ def main():
     ref_ebit = {**{p: v for p, v in LH.get("income_statement_ebit_operating_income", {}).items()}, **dict(zip(periods, ebit))}
     ref_m = {p: ref_ebit[p] / ref_rev[p] for p in sorted(ref_rev) if ref_rev.get(p) and ref_ebit.get(p) is not None}
     # Recurring charges: consensus EBIT is often the company's ADJUSTED measure (it leaves out
-    # restructuring and other special charges that recur), while history is reported. The average
-    # gap (adjusted - reported EBIT) as % of revenue is deducted from every consensus-derived margin.
+    # restructuring and other special charges that recur). The gap is measured against Distilla's own
+    # EBIT for the same year - the basis the model's history uses, which can already be close to the
+    # adjusted figure (Caterpillar) - and the MEDIAN of up to 3 years is deducted from every
+    # consensus-derived margin, so one exceptional year (GM 2025 EV charges) does not set it.
     rc = raw.get("recurring_charges") or {}
     charges_pct = 0.0
     if rc.get("pct_rev") is not None:
         charges_pct = float(rc["pct_rev"])
-    elif rc.get("by_year"):
-        pcts = []
-        for y, gap in rc["by_year"].items():
-            r_ = next((v for p_, v in ref_rev.items() if p_[:4] == str(y)[:4] and v), None)
-            if r_ and num(gap) is not None:
-                pcts.append(num(gap) / r_)
-        charges_pct = avg(pcts) or 0.0
+    elif rc.get("adjusted_by_year"):
+        pcts, gaps = [], []
+        for y, adj_ebit in rc["adjusted_by_year"].items():
+            p_ = next((q for q in ref_rev if q[:4] == str(y)[:4] and ref_rev[q]), None)
+            if p_ and num(adj_ebit) is not None and ref_ebit.get(p_) is not None:
+                gap = num(adj_ebit) - ref_ebit[p_]
+                gaps.append(f"{str(y)[:4]}: {num(adj_ebit):,.0f} - {ref_ebit[p_]:,.0f} = {gap:,.0f}")
+                pcts.append(gap / ref_rev[p_])
+        if pcts:
+            srt = sorted(pcts)
+            charges_pct = max(0.0, srt[len(srt) // 2] if len(srt) % 2 else (srt[len(srt) // 2 - 1] + srt[len(srt) // 2]) / 2)
+            rc["source"] = (rc.get("source") or "source not recorded") + "; adjusted - Distilla EBIT " + "; ".join(gaps)
     if charges_pct:
         flags.append(f"RECURRING CHARGES: consensus EBIT is on an adjusted basis; {charges_pct:.1%} of revenue "
-                     f"(average adjusted-to-reported gap; {rc.get('source', 'source not recorded')}) is deducted "
+                     f"(median gap to Distilla's EBIT; {rc.get('source', 'source not recorded')}) is deducted "
                      "from every consensus-derived margin. Anchors must be on the reported basis.")
     hist_g = avg(hist_ratios["revenue_growth"][last3]) or 0.03
     hist_m = avg(hist_ratios["ebit_margin"][last3]) or 0.10
@@ -729,12 +737,20 @@ def main():
     hist_capex = avg(hist_ratios["capex_pct_rev"][last3]) or 0.05
     capex_cons = [x if x is not None else hist_capex for x in capex_cons]
     # simulate the base-case PP&E path through the consensus years
-    r_, p_ = rev[-1], ppe[-1]
+    # A finance arm's assets leased to customers are held flat inside PP&E: they are the finance arm's
+    # business (valued separately), and consensus capex / D&A usually leave them out. Post-consensus capex
+    # and D&A then run on industrial PP&E, at the depreciation rate the last consensus year implies.
+    leased = min(fa["leased"], ppe[-1]) if fa else 0.0
+    r_, p_ = rev[-1], ppe[-1] - leased
     g_base = scen["base"]["revenue_growth"]
+    d_last = p_beg_last = None
     for i in range(len(capex_cons)):
         r_ *= 1 + g_base[i]
         d_ = da_override[i] * r_ if da_override[i] is not None else dep_rate * p_
+        d_last, p_beg_last = (d_ if da_override[i] is not None else None), p_
         p_ = p_ + (capex_cons[i] + lease_add_pct) * r_ - d_
+    if leased and d_last and p_beg_last and p_beg_last > 0:
+        dep_rate = d_last / p_beg_last
     k_ratio = p_ / r_ if r_ else 0
     capex_path = list(capex_cons)
     for i in range(len(capex_cons), N):
@@ -836,6 +852,9 @@ def main():
         if "buyback" in rp_:
             model["assumptions"]["buyback_pct_ni"] = [rp_["buyback"]] * N
     # user-confirmed overrides (e.g. {"tax_rate": 0.24}) - constant across the forecast
+    if "tax_rate" in (raw.get("assumption_overrides") or {}):
+        flags[:] = [f for f in flags if not f.startswith("Effective tax rate")]
+        flags.append(f"Tax rate set by the user: {raw['assumption_overrides']['tax_rate']:.1%}.")
     for k, v in (raw.get("assumption_overrides") or {}).items():
         if isinstance(model["assumptions"].get(k), list):
             model["assumptions"][k] = [v] * N
@@ -887,8 +906,8 @@ def main():
         print(f"Finance arm valued separately - {fa['name']}: assets {fa['assets']:,.0f} ({fa['asset_share']:.0%} of total), "
               f"pre-tax profit {fa['profit']:,.0f} ({fa['profit_pct']:.1%} of revenue)")
         print(f"  equity {fa['equity']:,.0f} [{fa['equity_basis']}]; debt {fa['debt']:,.0f} [{fa['debt_basis']}]")
-        print(f"  own cash {fa['cash']:,.0f} [{fa['cash_basis']}]; leased assets share of PP&E {fa['ppe_share']:.0%} "
-              f"[{fa['ppe_share_basis']}]")
+        print(f"  own cash {fa['cash']:,.0f} [{fa['cash_basis']}]; leased assets held flat {fa['leased']:,.0f} "
+              f"[{fa['leased_basis']}]")
         print(f"  LT finance receivables {fa['lt_rec']:,.0f} [{fa['lt_rec_basis']}]; current share of receivables "
               f"{fa['rec_share']:.0%} [{fa['rec_share_basis']}]")
         if roe is not None:

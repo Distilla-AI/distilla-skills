@@ -37,6 +37,13 @@ A = M["assumptions"]
 RAW = M["historical"]["raw"]
 FA = M.get("finance_arm") or {}
 FA_ON = bool(FA.get("on"))
+
+
+def fa_leased_term():
+    """Leased assets held flat: subtracted from the D&A base. Built at write time, once the DCF cells exist."""
+    return f"-{sref('fa_leased')}*{sref('fa_on')}" if FA_ON else ""
+
+
 MH = M.get("multiple_history") or {}
 
 # ---------------------------------------------------------------- formats & styles
@@ -678,7 +685,7 @@ ssb.line("capex", "(+) Capex", NUM, hist=lambda j: f"=-{raw('cash_flow_capital_e
 ssb.line("ppe_lease", "(+) New leases (right-of-use assets)", NUM, fc=lambda j: f"={ref(SCH, 'lease_add', j)}")
 ssb.line("da", "(-) D&A", NUM, hist=lambda j: f"={ref(IS, 'da', j)}",
          fc=lambda j: (f"=IF(ISNUMBER({ref('Assumptions', 'da_ovr', j)}),{ref(IS, 'rev', j)}*{ref('Assumptions', 'da_ovr', j)},"
-                       f"{ref(SCH, 'ppe_beg', j)}*{ref('Assumptions', 'dep_rate', j)})"),
+                       f"({ref(SCH, 'ppe_beg', j)}{fa_leased_term()})*{ref('Assumptions', 'dep_rate', j)})"),
          note="Forecast: consensus-implied D&A (EBITDA - EBIT) where given, otherwise depreciation rate x beginning PP&E.")
 ssb.line("ppe_oth", "(+/-) Other (leases, disposals, FX; history only)", NUM,
          hist=lambda j: None if j == 0 else f"={ref(BS, 'ppe', j)}-{ref(SCH, 'ppe_beg', j)}-{ref(SCH, 'capex', j)}+{ref(SCH, 'da', j)}")
@@ -784,8 +791,8 @@ if FA_ON:
     dsb.scalar("fa_lti", "Long-term finance receivables inside LT investments", round(FA.get("lt_rec", 0), 1), NUM,
                source=FA.get("lt_rec_basis"))
     dsb.scalar("fa_cash", "Finance arm's own cash (out of bridge cash)", round(FA.get("cash", 0), 1), NUM, source=FA.get("cash_basis"))
-    dsb.scalar("fa_ppe_share", "Assets leased to others, share of net PP&E", round(FA.get("ppe_share", 0), 4), PCT,
-               source=FA.get("ppe_share_basis"))
+    dsb.scalar("fa_leased", "Assets leased to customers, held flat in PP&E", round(FA.get("leased", 0), 1), NUM,
+               source=FA.get("leased_basis"))
     dsb.scalar("fa_eq", "Finance arm book equity", round(FA.get("equity", 0), 1), NUM, source=FA.get("equity_basis"))
     dsb.scalar("fa_roe", "Finance arm after-tax ROE", None, PCT, source="Pre-tax profit x (1 - tax rate) / book equity")
     dsb.scalar("fa_pb_ovr", "Your P/B for the finance arm (optional; blank = justified P/B)", FA.get("pb_override"), DEC)
@@ -845,19 +852,13 @@ if FA_ON:
              fc=lambda j: f"=({ref(BS, 'rec', j)}-{ref(BS, 'rec', prev(j))})*{sref('fa_rec_share')}*{sref('fa_on')}",
              note="Current finance receivables grow with revenue inside working capital; the finance arm funds them with its own debt, "
                   "which is out of the bridge, so their growth comes out of the industrial cash flow.")
-    dsb.line("fa_ppe", "(+) Finance-arm leased assets growth (funded by finance-arm debt)", NUM,
-             fc=lambda j: f"=({ref(BS, 'ppe', j)}-{ref(BS, 'ppe', prev(j))})*{sref('fa_ppe_share')}*{sref('fa_on')}",
-             note="Equipment and vehicles leased to customers sit in PP&E, capex and D&A; the finance arm funds them, so "
-                  "their net investment comes out of the industrial cash flow.")
-fa_rec_term = (lambda j: f"+{ref(DCF, 'fa_rec', j)}+{ref(DCF, 'fa_ppe', j)}") if FA_ON else (lambda j: "")  # noqa: E731
+fa_rec_term = (lambda j: f"+{ref(DCF, 'fa_rec', j)}") if FA_ON else (lambda j: "")  # noqa: E731
 dsb.line("ufcf", "Unlevered free cash flow", NUM, bold=True, top=True,
          fc=lambda j: (f"={ref(DCF, 'nopat', j)}+{ref(DCF, 'da', j)}+{ref(DCF, 'capex', j)}+{ref(DCF, 'dnwc', j)}"
                        f"+{ref(DCF, 'leasecap', j)}{fa_rec_term(j)}"))
 dsb.line("ebitda_v", "EBITDA for multiples" + (" (industrial)" if FA_ON else ""), NUM,
-         fc=lambda j: f"={ref(IS, 'ebitda', j)}" + (f"+{ref(DCF, 'fa_ebit', j)}-{ref(IS, 'da', j)}*{sref('fa_ppe_share')}*{sref('fa_on')}"
-                                                   if FA_ON else ""),
-         hist=lambda j: (f"={ref(IS, 'ebitda', j)}" + (f"-{sref('fa_profit')}*{sref('fa_on')}-{ref(IS, 'da', j)}*{sref('fa_ppe_share')}"
-                                                     f"*{sref('fa_on')}" if FA_ON else ""))
+         fc=lambda j: f"={ref(IS, 'ebitda', j)}" + (f"+{ref(DCF, 'fa_ebit', j)}" if FA_ON else ""),
+         hist=lambda j: (f"={ref(IS, 'ebitda', j)}" + (f"-{sref('fa_profit')}*{sref('fa_on')}" if FA_ON else ""))
          if j == NH - 1 else None)
 dsb.line("rest", "  of which: D&A - capex - NWC - new leases", NUM, fc=lambda j: f"={ref(DCF, 'ufcf', j)}-{ref(DCF, 'nopat', j)}")
 dsb.line("ufcf_in", "UFCF counted (x fraction)", NUM, fc=lambda j: f"={ref(DCF, 'ufcf', j)}*{ref(DCF, 'frac', j)}")
@@ -1134,7 +1135,7 @@ def fill_checks():
     }
     if FA_ON:
         f["c_fa"] = (f"=IF(AND({sref('fa_debt')}<={sref('b_debt')},{sref('fa_lti')}<={sref('b_lti')},{sref('fa_eq')}>0,"
-                     f"{sref('fa_cash')}<={sref('b_cash')},{sref('fa_ppe_share')}<=1,"
+                     f"{sref('fa_cash')}<={sref('b_cash')},{sref('fa_leased')}<={ref(BS, 'ppe', NH - 1)},"
                      f"{sref('fa_rec_share')}<=1),\"OK\",\"REVIEW\")")
         f["c_all"] = f["c_all"].replace(f"{sref('c_reinv')}=\"OK\")", f"{sref('c_reinv')}=\"OK\",{sref('c_fa')}=\"OK\")")
     for kind, r, it in chk.items:
