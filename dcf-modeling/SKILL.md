@@ -163,7 +163,8 @@ Never call any other connector, even when one is connected.
 - **Banks, insurers, lenders:** no build — "When not to build a DCF" names what fits instead.
 - **Bridge balances:** cash, long-term investments, debt, leases and minority interest at the latest reported quarter in the reporting currency; shares per the Diluted shares (bridge) row; market cap = price × FX × diluted shares (rule 2.3 rebuild), cross-checked against `stock_price.market_cap` (USD, rule 2.6) — a gap over 10% is flagged, and the vendor value is never the input.
 - **Finance arm** (a finance segment whose assets are ≥ 10% of total assets): the DCF values the industrial business only — the finance segment's pre-tax profit comes out of EBIT and its receivables growth out of the cash flow, its debt and long-term finance receivables out of the bridge — and the finance arm is added back at book equity × justified P/B = (ROE − g) ÷ (cost of equity − g), bounded 0.5–2.5×. Its own cash comes out of bridge cash, and its assets leased to customers are held flat in PP&E (post-consensus capex and D&A run on the rest); beta is the published Blume-adjusted beta, without the sector check (finance debt funds low-risk receivables). A missing input falls back to 1.0× book, labelled a default in the workbook and the summary.
-- **Pensions and recurring charges:** the net pension and retiree-benefit deficit is deducted in the bridge after tax (a surplus is not added); recurring charges (the company's adjusted EBIT minus Distilla's EBIT for the same year, the median of up to 3 years) come off every consensus-derived margin, so the forecast is on Distilla's history basis. Neither is in Distilla: annual report, `†`.
+- **Pensions and the basis gap:** the net pension and retiree-benefit deficit is deducted in the bridge after tax (a surplus is not added); the basis gap (the company's own operating profit, which consensus follows, minus Distilla's EBIT for the same year, the median of up to 3 years, either sign — recurring charges or other income) comes off every consensus-derived margin, so the forecast is on Distilla's history basis. Neither is in Distilla: filings, `†`.
+- **Discount rate vs brokers:** discount rates stated in the broker notes read (WACC or cost of equity) are recorded beside the model's; the workbook prices the value at the brokers' median rate. The model's rate is never replaced without the user's choice; a gap over 3 points is the first judgment call (local-currency CAPM in low-rate currencies runs well below broker rates — Anta: 5.8% vs 11%).
 - **Pre-flight KU check (rule 2.1 #1)** covers `by_segment_financials`, `cash_and_debt` and the evidence units named in `references/evidence_guide.md`.
 - **Terminal multiple cross-check (3e):** the implied terminal EV/EBITDA against the company's own 3-year `valuation_multiple` `NTM_Ev_Ebitda_Med_W` average, low and high (`aggregate_entity`, latest value spot-checked per rule 2.4); none returned → `--` with the call named. State the vendor EV basis the spot-check finds (with or without a finance arm's debt).
 
@@ -214,16 +215,27 @@ equity (its own column after eliminations), its own cash, and assets leased to c
 PP&E). Else the Distilla leverage text; else leave them `null`. The script values the finance arm
 separately; see the field notes.
 
-**Pensions and recurring charges** (every company). From the annual report: the net pension and
-retiree-benefit deficit (`bridge.pension_deficit`, pre-tax; 0 when funded). If the company reports
-an adjusted operating profit that consensus follows, that adjusted EBIT for up to the last 3 years
-(`recurring_charges.adjusted_by_year`); the script measures it against Distilla's own EBIT for the
-same years and deducts the median gap from every consensus-derived margin. The script flags a consensus margin far above the last reported one.
+**Pensions, basis gap, history breaks, share count** (every company).
+- From the latest filing: the net pension and retiree-benefit deficit (`bridge.pension_deficit`,
+  pre-tax; 0 when funded).
+- If consensus follows the company's own operating profit (an adjusted measure, or one that includes
+  other income Distilla books below EBIT), that operating profit for up to the last 3 years
+  (`basis_gap.adjusted_by_year`); the script takes the median gap to Distilla's EBIT, either sign,
+  off every consensus-derived margin. When the CONSENSUS BASIS flag fires and the move is real (an
+  upcycle), record `basis_gap = {"none": true, "reason": "..."}` instead.
+- When the HISTORY BREAK flag fires (a business sold or reclassified as discontinued), record the
+  continuing-operations revenue and EBIT for earlier years from the latest filing's restated
+  comparatives in `continuing_history`; the script uses them for the reference points and the peak
+  guard. If no restatement exists, say so in the flags.
+- Basic shares (`bridge.basic_shares`, `income_statement_total_shares_outstanding`): the script flags
+  diluted shares more than 3% above basic (convertible bonds counted in both shares and debt).
 
 **Fetching filings and pages:** only with the host's page-fetch tool. Never download pages with
 code (`curl`, Python requests) and never send the user's name, email or other details in a request.
 When an annual report is too long to fetch whole, fetch EDGAR's financial-report pages
-(`R2.htm`, `R4.htm` … in the filing folder) or the XBRL company-facts page instead.
+(`R2.htm`, `R4.htm` … in the filing folder) or the XBRL company-facts page instead. Outside the US
+(HKEXnews, TDnet, EDINET, DART, CNINFO PDFs over the fetch limit): the interim report or the results
+announcement, which carry the same statements; else record the item as not sourced (0) and flag it.
 
 ### 2. Source WACC inputs live
 Use the host's full web search here, not a fast or lite variant: in testing a fast search tool
@@ -256,9 +268,11 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
 `references/evidence_guide.md`:
 1. **Gather evidence before deciding**: one `company_drivers` query; the rule 3a broker list
    (`search_public_library` `mode="list"`, `date_range="90d"`, `doc_types=["Research"]`, the
-   ticker); group the list by its `broker` field and read each broker's most relevant recent note
-   (else its latest) with `get_library_document` (rating, target price, date — all brokers, never a
-   sample); then 2–3 *neutral* `search_public_library` `mode="synthesize"` questions ("when
+   ticker); each entry of the list's answer text names its broker (a `broker:` line — the `sources`
+   array does not), so group by that and read each broker's most relevant recent note (else its
+   latest) with `get_library_document` (rating, target price, date — all brokers, never a sample); a
+   list of exactly 100 or 200 entries is capped (rule 3a widening applies). Record any discount rate
+   a note states (WACC or cost of equity) in `raw.json["broker_discount_rates"]`; then 2–3 *neutral* `search_public_library` `mode="synthesize"` questions ("when
    does the shortage end?", not "confirm the margin"). Add the own-history multiple for the
    terminal cross-check: `aggregate_entity` on `valuation_multiple`, type `NTM_Ev_Ebitda_Med_W`,
    last 3 years, AVG / MIN / MAX, into `raw.json["multiple_history"]`.
@@ -276,7 +290,8 @@ First build, recalculate and check the draft exactly as in step 7, so the checkp
 draft value. Then present, compactly, in chat:
 - The Base case table (growth, EBIT margin, capex %) by forecast year, noting which years are
   consensus-anchored.
-- WACC and terminal growth, each input tagged *live* or *default*.
+- WACC and terminal growth, each input tagged *live* or *default*, and beside them the discount
+  rates the broker notes state with the value per share at their median rate (or "none stated").
 - **Draft value per share** for base, bull and bear against the price, and what the price implies
   (reverse DCF). A gap over ±40% is judgment call 4: name the input that drives it.
 - **Finance arm**, when one is valued separately: book equity, ROE, justified P/B and value, each
@@ -329,7 +344,8 @@ printouts stay in the working folder) and share it with the user (attach, link o
 through the host's file mechanism). Then a short summary in prose:
 value per share (all three scenarios) against the current price and consensus target, **what the
 price implies** (reverse DCF: perpetual growth or margin needed), the two or three inputs that
-drive the answer and the evidence behind them, the terminal-multiple cross-check, any warnings, and how to use the
+drive the answer and the evidence behind them, the value at the brokers' discount rate where notes
+state one, the terminal-multiple cross-check, any warnings, and how to use the
 workbook (blue cells are inputs; scenario switch at the top of Assumptions; sensitivity tab).
 Present the value as the output of stated assumptions, not a recommendation. The assistant isn't
 a financial advisor, and the user makes the call.

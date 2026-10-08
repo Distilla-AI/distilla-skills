@@ -395,9 +395,9 @@ asb.line("m_live", "EBIT margin - active scenario", PCT, bold=True,
          hist=lambda j: f"={ref('Income Statement', 'ebit_m', j)}", fc=live("m_base", "m_bull", "m_bear"))
 RC = M.get("recurring_charges") or {}
 if RC.get("pct_rev"):
-    asb.line("rc_memo", "  memo: recurring charges already deducted (adjusted -> reported)", PCT,
+    asb.line("rc_memo", "  memo: basis gap already taken off (company basis -> Distilla EBIT basis)", PCT,
              fc=lambda j: RC["pct_rev"],
-             note="Consensus EBIT is the company's adjusted measure; the average adjusted-to-reported gap is deducted from "
+             note="Consensus follows the company's own operating profit; the median gap to Distilla's EBIT is taken off "
                   "every consensus-derived margin above. Source: " + (RC.get("source") or "not recorded"))
 
 asb.hdr("Operating drivers (history shown for reference)")
@@ -898,6 +898,13 @@ _mh_src = (f"Distilla valuation_multiple {MH.get('type')} since {MH.get('from')}
            if MH.get("avg") is not None else "Not retrieved")
 dsb.scalar("mh_avg", "Own-history NTM EV/EBITDA - average", float(MH["avg"]) if MH.get("avg") is not None else None, MULT, source=_mh_src)
 dsb.scalar("mh_min", "Own-history NTM EV/EBITDA - low", float(MH["min"]) if MH.get("min") is not None else None, MULT)
+dsb.blank()
+dsb.hdr("Discount rate vs broker notes (the user picks; the model's rate is above)")
+_bwm, _bkm = W.get("broker_wacc_median"), W.get("broker_ke_median")
+dsb.scalar("b_rate", "Brokers' median discount rate" + (" (cost of equity)" if _bkm and not _bwm else " (WACC)"),
+           _bwm if _bwm is not None else _bkm, PCT2, source=W.get("broker_rates") or "None stated in the notes read")
+dsb.scalar("b_wacc", "  as a WACC at today's weights", None, PCT2)
+dsb.scalar("vps_b", "Value per share at the brokers' rate", None, PS, bold=True)
 dsb.scalar("mh_max", "Own-history NTM EV/EBITDA - high", float(MH["max"]) if MH.get("max") is not None else None, MULT)
 dsb.blank()
 dsb.hdr("Reverse DCF: what today's share price implies")
@@ -978,6 +985,12 @@ def fill_dcf_formulas():
         "vps_x": (f"=IF(ISNUMBER({sref('mult')}),({sref('sum_pv')}+{ebitdaN}*{sref('mult')}/(1+{sref('wacc')})^{sref('tN')}"
                   f"+{sref('bridge')})/{sref('shares')}/{sref('fx')},\"n/a\")"),
         "vs_target": f"=IFERROR({sref('vps')}/{sref('target')}-1,0)",
+        "b_wacc": (f"=IF(ISNUMBER({sref('b_rate')})," + (f"{sref('we')}*{sref('b_rate')}+{sref('wd')}*{sref('kd_at')}"
+                   if (W.get('broker_ke_median') and not W.get('broker_wacc_median')) else f"{sref('b_rate')}") + ",\"n/a\")"),
+        "vps_b": (f"=IF(AND(ISNUMBER({sref('b_wacc')}),N({sref('b_wacc')})>{sref('g')}),"
+                  f"(SUMPRODUCT({rng(DCF, 'ufcf_in', f0, fN)}/(1+{sref('b_wacc')})^{rng(DCF, 'tt', f0, fN)})"
+                  f"+{uN}*(1+{sref('g')})/({sref('b_wacc')}-{sref('g')})/(1+{sref('b_wacc')})^{sref('tN')}"
+                  f"+{sref('bridge')})/{sref('shares')}/{sref('fx')},\"n/a\")"),
     }
     if FA_ON:
         lastrev = ref(IS, 'rev', NH - 1)
@@ -1171,6 +1184,9 @@ sm.scalar("s_mkt", "Today's market EV/EBITDA (reference)", None, MULT)
 if FA_ON:
     sm.scalar("s_fa", f"Finance arm value in the bridge ({FA.get('name', '')})", None, NUM, unit=f"{CUR} {UNITS}")
     sm.scalar("s_fapb", "  at P/B (justified unless overridden; 1.0x = default)", None, DEC)
+if W.get("broker_rates"):
+    sm.scalar("s_brate", "Brokers' median discount rate (as WACC)", None, PCT2)
+    sm.scalar("s_vpsb", "Value per share at the brokers' rate", None, PS, bold=True, unit=MK.get("price_currency", CUR))
 if MH.get("avg") is not None:
     sm.scalar("s_mh", "Own 3-year NTM EV/EBITDA average (reference)", None, MULT)
 sm.scalar("s_chk", "Model checks", None, '@', bold=True)
@@ -1251,6 +1267,8 @@ def fill_summary():
         f.update({"s_fa": f"={sref('fa_val')}*{sref('fa_on')}", "s_fapb": f"={sref('fa_pb')}"})
     if MH.get("avg") is not None:
         f["s_mh"] = f"={sref('mh_avg')}"
+    if W.get("broker_rates"):
+        f.update({"s_brate": f"={sref('b_wacc')}", "s_vpsb": f"={sref('vps_b')}"})
     for kind, r, it in sm.items:
         if kind == "scalar" and it["key"] in f:
             it["value"] = f[it["key"]]

@@ -171,6 +171,13 @@ def main():
     periods = [p for p in periods if A.get("income_statement_sales", {}).get(p) is not None]
     n_hist = int(raw.get("n_hist", 5))
     periods = periods[-n_hist:]
+    _rv = [A.get("income_statement_sales", {}).get(q) for q in periods]
+    if len(_rv) >= 2 and _rv[-2] and _rv[-1] is not None and abs(_rv[-1] / _rv[-2] - 1) > 0.25 \
+            and not raw.get("continuing_history"):
+        flags.append(f"HISTORY BREAK?: revenue moved {_rv[-1] / _rv[-2] - 1:+.0%} in the last actual year. If a business was "
+                     "sold or reclassified as discontinued, record the continuing-operations revenue and EBIT for earlier "
+                     "years in raw.json['continuing_history'] (from the restated comparatives in the latest filing) and re-run; "
+                     "otherwise say why the move is real.")
     if len(periods) < 3:
         flags.append(f"THIN HISTORY: only {len(periods)} annual periods with revenue. Ask the user before proceeding.")
 
@@ -330,6 +337,11 @@ def main():
         if abs(gap) > 0.10:
             flags.append(f"MARKET CAP CHECK: rebuilt market cap is {gap:+.1%} from Distilla's - check the share "
                          "count basis (classes, ADR ratio) and the FX rate before trusting value per share.")
+    bs_ = bridge.get("basic_shares")
+    if bs_ and bridge.get("diluted_shares") and bridge["diluted_shares"] > 1.03 * bs_:
+        flags.append(f"SHARE COUNT: diluted shares {bridge['diluted_shares']:,.1f}m are {bridge['diluted_shares'] / bs_ - 1:.1%} above "
+                     f"basic {bs_:,.1f}m. If the difference is convertible-bond conversion while the bonds also sit in "
+                     "debt, keep one: basic shares, or remove the convertible from debt.")
     # ---------- finance arm (captive finance) valued separately: see SKILL.md field notes
     fa_raw = raw.get("finance_arm") or {}
     fa = None
@@ -476,6 +488,23 @@ def main():
     tax_low = tax_eff < 0.5 * cdef["tax"]
     wacc["tax_rate"] = round(cdef["tax"] if tax_low else tax_eff, 4)
     wacc["target_debt_weight"] = W.get("target_debt_weight")  # None = use current market weights
+    # B: discount rates the brokers' notes state, beside the model's. The user picks; nothing changes here.
+    bdr = [b for b in (raw.get("broker_discount_rates") or []) if b.get("rate") is not None]
+    ke_model = wacc["rf"] + wacc["beta"] * wacc["erp"] + wacc["crp"]
+    if bdr:
+        def _med(xs):
+            xs = sorted(xs)
+            return xs[len(xs) // 2] if len(xs) % 2 else (xs[len(xs) // 2 - 1] + xs[len(xs) // 2]) / 2
+        bw = [float(b["rate"]) for b in bdr if str(b.get("basis", "WACC")).upper() == "WACC"]
+        bk = [float(b["rate"]) for b in bdr if str(b.get("basis", "")).lower().startswith("cost")]
+        wacc["broker_rates"] = "; ".join(f"{b.get('broker')} {float(b['rate']):.1%} {b.get('basis', 'WACC')} ({b.get('date', '')})" for b in bdr)
+        wacc["broker_wacc_median"] = round(_med(bw), 4) if bw else None
+        if bk and not bw:  # a cost of equity only: compare like with like, and price it at today's weights
+            wacc["broker_ke_median"] = round(_med(bk), 4)
+        wacc["broker_basis"] = "cost of equity" if wacc.get("broker_ke_median") else "WACC"
+        flags.insert(0, f"DISCOUNT RATE vs BROKERS: brokers' notes state {wacc['broker_rates']}. The model's cost of equity is "
+                        f"{ke_model:.1%}; the workbook prices the value at the brokers' median rate beside the model's. "
+                        "If they differ by more than 3 points, this is the first judgment call: ask which rate to use.")
 
     # ---------- forecast horizon & dates
     g_term = W.get("terminal_growth")
@@ -533,7 +562,7 @@ def main():
     # EBIT for the same year - the basis the model's history uses, which can already be close to the
     # adjusted figure (Caterpillar) - and the MEDIAN of up to 3 years is deducted from every
     # consensus-derived margin, so one exceptional year (GM 2025 EV charges) does not set it.
-    rc = raw.get("recurring_charges") or {}
+    rc = raw.get("basis_gap") or raw.get("recurring_charges") or {}
     charges_pct = 0.0
     if rc.get("pct_rev") is not None:
         charges_pct = float(rc["pct_rev"])
@@ -547,12 +576,27 @@ def main():
                 pcts.append(gap / ref_rev[p_])
         if pcts:
             srt = sorted(pcts)
-            charges_pct = max(0.0, srt[len(srt) // 2] if len(srt) % 2 else (srt[len(srt) // 2 - 1] + srt[len(srt) // 2]) / 2)
+            charges_pct = srt[len(srt) // 2] if len(srt) % 2 else (srt[len(srt) // 2 - 1] + srt[len(srt) // 2]) / 2
+            if abs(charges_pct) < 0.0025:  # under 0.25% of revenue: the two bases agree
+                charges_pct = 0.0
             rc["source"] = (rc.get("source") or "source not recorded") + "; adjusted - Distilla EBIT " + "; ".join(gaps)
     if charges_pct:
-        flags.append(f"RECURRING CHARGES: consensus EBIT is on an adjusted basis; {charges_pct:.1%} of revenue "
-                     f"(median gap to Distilla's EBIT; {rc.get('source', 'source not recorded')}) is deducted "
-                     "from every consensus-derived margin. Anchors must be on the reported basis.")
+        flags.append(f"BASIS GAP: consensus follows the company's own operating profit, which runs {charges_pct:+.1%} of revenue "
+                     f"against Distilla's EBIT (median; {rc.get('source', 'source not recorded')}); that gap comes off every "
+                     "consensus-derived margin so the forecast is on Distilla's basis. Anchors must be on that basis. Say what "
+                     "the gap is (recurring charges, other income) - it may carry value of its own.")
+    # G1: continuing-operations history (after a divestiture) replaces the reference points and peak-guard
+    # averages; the Model tab still shows Distilla as delivered.
+    CH = pivot(raw.get("continuing_history") or {}, "M.name")
+    if CH:
+        for q, v in CH.get("income_statement_sales", {}).items():
+            ref_rev[q] = v
+        for q, v in CH.get("income_statement_ebit_operating_income", {}).items():
+            ref_ebit[q] = v
+        ref_m = {q: ref_ebit[q] / ref_rev[q] for q in sorted(ref_rev) if ref_rev.get(q) and ref_ebit.get(q) is not None}
+        flags.append("Continuing-operations history used for reference points and the peak guard "
+                     f"({', '.join(sorted(q[:4] for q in CH.get('income_statement_sales', {})))}; "
+                     f"{(raw.get('continuing_history') or {}).get('source', 'source not recorded')}).")
     hist_g = avg(hist_ratios["revenue_growth"][last3]) or 0.03
     hist_m = avg(hist_ratios["ebit_margin"][last3]) or 0.10
     scen = {}
@@ -580,11 +624,15 @@ def main():
                      f"{hist_span} average ({hist_all_m:.1%}); beyond-consensus margins fade to a mid-cycle "
                      f"{ss_base:.1%}. Confirm with the user - this is the biggest value driver.")
     if not rc and ncons and C.get("ebit_mean", {}).get(cons_periods[0]) and hist_ratios["ebit_margin"][-1] is not None:
+        # cleared by raw.json basis_gap = {"none": true, "reason": ...} (rc is then non-empty)
         m1 = C["ebit_mean"][cons_periods[0]] / C["sales_mean"][cons_periods[0]]
         if m1 > hist_ratios["ebit_margin"][-1] + 0.03:
             flags.append(f"CONSENSUS BASIS: FY1 consensus EBIT margin {m1:.1%} is well above the last reported "
-                         f"{hist_ratios['ebit_margin'][-1]:.1%}. If consensus is the company's adjusted EBIT, record "
-                         "the adjusted-to-reported gap in raw.json['recurring_charges'] and re-run.")
+                         f"{hist_ratios['ebit_margin'][-1]:.1%}. If consensus follows the company's own (adjusted) "
+                         "operating profit, record it by year in raw.json['basis_gap']['adjusted_by_year']; if you checked "
+                         "and the move is real (an upcycle), record basis_gap = {'none': true, 'reason': ...}.")
+    if rc.get("none"):
+        flags.append(f"Basis gap checked: none - {rc.get('reason', 'reason not recorded')}.")
     scen["base"] = {"revenue_growth": fade(bg, N, g_term), "ebit_margin": fade(bm, N, ss_base)}
     for name, sk, ek, dg, dm in (("bull", "sales_high", "ebit_high", 0.02, 0.01),
                                  ("bear", "sales_low", "ebit_low", -0.02, -0.01)):
@@ -846,6 +894,7 @@ def main():
         "finance_arm": fa or {},
         "recurring_charges": {"pct_rev": round(charges_pct, 4), "source": rc.get("source", "")} if charges_pct else {},
         "multiple_history": raw.get("multiple_history") or {},
+        "basis_gap": {"none": True, "reason": rc.get("reason", "")} if rc.get("none") else {},
         "evidence": [],  # filled by the assistant in the evidence step (see references/evidence_guide.md)
         "flags": flags,
     }
@@ -907,7 +956,10 @@ def main():
         print(f"Own-history {mh.get('type')} since {mh.get('from')}: avg {float(mh['avg']):.1f}x, "
               f"low {float(mh['min']):.1f}x, high {float(mh['max']):.1f}x (n={mh.get('n')})")
     if charges_pct:
-        print(f"Recurring charges deducted from consensus margins: {charges_pct:.1%} of revenue ({rc.get('source', '')})")
+        print(f"Basis gap taken off consensus margins: {charges_pct:+.1%} of revenue ({rc.get('source', '')})")
+    if wacc.get("broker_rates"):
+        print(f"Discount rates in broker notes: {wacc['broker_rates']} | model cost of equity "
+              f"{wacc['rf'] + wacc['beta'] * wacc['erp'] + wacc['crp']:.2%}")
     pdf = bridge.get("pension_deficit")
     print(f"Pension & retiree-benefit deficit in the bridge: " + (f"{pdf:,.0f} pre-tax, {max(0.0, pdf) * (1 - tax_eff):,.0f} "
           f"after tax ({bridge.get('pension_source', 'source not recorded')})" if pdf is not None else "not sourced (0)"))

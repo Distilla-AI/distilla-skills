@@ -34,8 +34,10 @@ query_entity(entity="company_drivers",
   select=["symbol","updated_at","content"], limit=1)
 ```
 
-**Broker coverage (rule 3a)** — list first, group the documents by their `broker` field, then read
-each broker's most relevant recent note (else its latest) — one read per broker, not per document:
+**Broker coverage (rule 3a)** — list first; each entry of the list's answer text has a `broker:`
+line (the `sources` array has none), so group by it, then read each broker's most relevant recent
+note (else its latest) — one read per broker, not per document. Note any discount rate a summary
+states (WACC or cost of equity) for `broker_discount_rates`:
 ```
 search_public_library(query="<company>", mode="list", date_range="90d", doc_types=["Research"],
   tickers=["<ticker>"])

@@ -80,6 +80,10 @@ why.
 
 Raise only the ones that apply. Lead with the one that moves value most.
 
+00. **Discount rate vs brokers.** When the broker notes state a discount rate more than 3 points
+   from the model's (WACC to WACC, cost of equity to cost of equity), lead with it: show both and the
+   value per share at each, name what drives the difference (risk-free rate of the currency, beta,
+   ERP), and ask which rate to use. Never switch rates without the user's answer.
 0. **Beta quality.** If the beta was blended with the sector (published betas far from the sector,
    typical for foreign listings with low R²), or several sources disagree, say so: a 0.2 change in
    beta moved value by 20–25% for BYD and Fast Retailing in testing.
@@ -118,9 +122,12 @@ Raise only the ones that apply. Lead with the one that moves value most.
    (annual report, or estimated from leverage), its ROE and the justified P/B. Say that WACC rises:
    the industrial business carries little of the group's debt once the finance arm's borrowing is
    taken out. Name any input that fell back to a default (1.0× book, 7× leverage).
-13. **Recurring charges and pensions.** Say how much the adjusted-to-reported gap takes off the
-   consensus margin and where it came from, and the after-tax pension deficit in the bridge; if the
-   CONSENSUS BASIS flag fired and no gap was found, say so.
+13. **Basis gap and pensions.** Say how much the basis gap moves the consensus margin, which way,
+   what it is (recurring charges, or other income Distilla books below EBIT — which may carry value of
+   its own) and where it came from, and the after-tax pension deficit in the bridge; if the CONSENSUS
+   BASIS flag fired and the move is real, say so.
+14. **History break.** After a divestiture, say whether the reference points use restated
+   continuing-operations history, and if not, that the long-run average mixes perimeters.
 
 ## WACC sourcing order (user choice: web search, then defaults)
 

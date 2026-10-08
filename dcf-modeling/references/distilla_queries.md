@@ -96,9 +96,11 @@ seen on Samsung).
 
 ## 3. Latest quarterly balance sheet (for the equity bridge)
 
-Same query shape with `T.duration = "quarter"`, `T.end_date >= <~6 months ago>`, sorted by
-`T.end_date desc`, metrics: cash, total LT investments, ST debt, LT debt excl. leases, lease
-obligations, accumulated minority interest, diluted shares. Use the most recent quarter-end.
+Same query shape with `T.duration` IN `["quarter", "half"]` (Hong Kong and many Asian companies
+report half-yearly), `T.end_date >= <~6 months ago>`, sorted by `T.end_date desc`, metrics: cash,
+total LT investments, ST debt, LT debt excl. leases, lease obligations, accumulated minority
+interest, diluted shares, `income_statement_total_shares_outstanding` (basic, for the share-count
+check). Use the most recent period-end.
 If the latest quarter is the fiscal year-end, the annual figures are the bridge.
 
 ## 4. Consensus estimates
@@ -175,7 +177,9 @@ Toyota Financial Services). If its assets are 10% or more of total assets, fill 
   `fx_reporting_per_price` = reporting-currency units per 1 unit of price currency (BYD: 0.867 CNY
   per HKD). The risk-free rate must be the one for the **reporting currency** (BYD: China 10y, not HK).
 - **Accounting standard.** Set `company.accounting_standard` when known (`US_GAAP`, `IFRS`, `J_GAAP`,
-  `CAS`). Japan mixes J-GAAP and IFRS, so for JP companies check it (web search "<company> IFRS").
+  `CAS`). Japan mixes J-GAAP and IFRS; Hong Kong listings report under HKFRS (= IFRS) or, for
+  mainland companies, sometimes CAS. For JP, HK and CN companies confirm it from the latest results
+  announcement or annual report (one search) and state the source; never set it from memory.
 - **Share classes.** Distilla diluted shares can include preferred / non-voting classes (Samsung:
   ~6.7bn incl. preferred). Value per share is then per combined share; say so in the summary.
 
@@ -192,13 +196,15 @@ Toyota Financial Services). If its assets are 10% or more of total assets, fill 
             "fx_source":"","target_price":0,"vendor_market_cap_usd":null,"usd_per_price_currency":1.0},
  "bridge": {"as_of":"YYYY-MM-DD","source":"","cash":0,"lt_investments":0,"st_debt":0,
             "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0,
-            "pension_deficit":null,"pension_source":""},
+            "pension_deficit":null,"pension_source":"","basic_shares":null},
  "include_lt_investments": 1,
  "wacc": {"rf":0.0,"rf_source":"","beta":null,"beta_source":"","erp":null,"erp_source":"",
           "crp":null,"crp_source":"","kd_pretax":null,"terminal_growth":null,
           "beta_published":[1.09,0.92],"beta_published_sources":"Yahoo 5Y monthly 1.09; GuruFocus 0.92"},
  "long_history": {"income_statement_sales": {...}, "income_statement_ebit_operating_income": {...}},
- "recurring_charges": {"adjusted_by_year": {"2025": 0, "2024": 0, "2023": 0}, "source": ""},   // company-adjusted EBIT; omit when none
+ "basis_gap": {"adjusted_by_year": {"2025": 0, "2024": 0, "2023": 0}, "source": ""},   // company's own operating profit; or {"none": true, "reason": ""}
+ "continuing_history": {"income_statement_sales": {}, "income_statement_ebit_operating_income": {}, "source": ""},   // after a divestiture; omit otherwise
+ "broker_discount_rates": [{"broker": "", "date": "YYYY-MM-DD", "rate": 0.0, "basis": "WACC | cost of equity"}],
  "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0,
                       "basis":"<vendor EV with or without a finance arm's debt, from the spot-check>"},
  "finance_arm": {"name":"","period":"YYYY-MM-DD","segment_source":"","revenue":0,"profit_pretax":0,"assets":0,

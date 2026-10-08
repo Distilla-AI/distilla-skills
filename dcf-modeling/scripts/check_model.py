@@ -236,6 +236,13 @@ try:
 except KeyError:
     pass
 try:
+    vb = scalar("DCF", "Value per share at the brokers' rate")
+    bw = scalar("DCF", "as a WACC at today's weights")
+    if isinstance(vb, (int, float)) and isinstance(bw, (int, float)):
+        print(f"{'Value per share at the brokers discount rate (' + format(bw, '.2%') + ')':66} {vb:>16,.2f}")
+except KeyError:
+    pass
+try:
     capped = scalar("Checks", "Years with buybacks capped by available cash (information)")
     if capped:
         print(f"Note: buybacks capped by available cash in {capped:.0f} forecast year(s)")
