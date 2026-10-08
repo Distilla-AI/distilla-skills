@@ -133,7 +133,8 @@ query_entity(entity="stock_price",
   sort=[{"field":"date","direction":"desc"}], limit=1)
 ```
 **Stock splits.** The same entity carries `split` (ratio on the effective date). Query `stock_price` from the
-bridge balance-sheet date to today, `select=["date","split"]`, and record every ratio other than 1 in
+bridge balance-sheet date to today, `select=["date","split"]`, filter `split` `gt` 0 (days without a split
+show 0), and record every ratio other than 1 in
 `market.splits_after_bridge` (e.g. `[{"date":"2026-09-29","ratio":5}]`) with share counts left as Distilla
 delivers them: the script scales them once. The market-cap cross-check catches a missed split.
 

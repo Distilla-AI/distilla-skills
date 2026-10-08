@@ -316,7 +316,7 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
    in consensus years the other segments' volume is recalibrated so the total still matches consensus.
    Anchor price for every year guidance or a note gives it (an unanchored price is 0). For a market × share
    line, the market growth comes from the notes read (cited) and share change from company or broker
-   statements. In a consensus year, leave at least one sizeable line unanchored so the total can match
+   statements; map a calendar-year market forecast to the fiscal year that covers most of it, and say so. In a consensus year, leave at least one sizeable line unanchored so the total can match
    consensus; anchoring every line is a deliberate off-consensus view and shows as a variance. When brokers state
    views by product rather than by segment (DRAM / NAND / HBM bits and prices), say how you mapped them to
    segments. Where brokers disagree on a driver, that spread sets bull and bear.
