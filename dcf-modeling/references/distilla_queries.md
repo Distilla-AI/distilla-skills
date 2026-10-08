@@ -131,6 +131,11 @@ query_entity(entity="stock_price",
   select=["symbol","date","close","sell_side_target_price","currency","market_cap"],
   sort=[{"field":"date","direction":"desc"}], limit=1)
 ```
+**Stock splits.** The same entity carries `split` (ratio on the effective date). Query `stock_price` from the
+bridge balance-sheet date to today, `select=["date","split"]`, filter `split` `gt` 0 (days without a split
+show 0), and record every ratio other than 1 in
+`market.splits_after_bridge` (e.g. `[{"date":"2026-09-29","ratio":5}]`) with share counts left as Distilla
+delivers them: the script scales them once. The market-cap cross-check catches a missed split.
 
 `market_cap` is in USD for every listing (rule 2.6): it is the cross-check for the rebuilt market cap,
 never an input.
@@ -193,7 +198,8 @@ Toyota Financial Services). If its assets are 10% or more of total assets, fill 
  "annual":    {"<metric>": {"<end_date>": "<value as delivered>"}},   // or the raw row list
  "consensus": {"sales_mean": {"<end_date>": "<value>"}, ...},          // or the raw row list
  "market": {"price":0,"price_date":"","price_currency":"","fx_reporting_per_price":1.0,
-            "fx_source":"","target_price":0,"vendor_market_cap_usd":null,"usd_per_price_currency":1.0},
+            "fx_source":"","target_price":0,"vendor_market_cap_usd":null,"usd_per_price_currency":1.0,
+            "splits_after_bridge":[]},
  "bridge": {"as_of":"YYYY-MM-DD","source":"","cash":0,"lt_investments":0,"st_debt":0,
             "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0,
             "pension_deficit":null,"pension_source":"","basic_shares":null,
