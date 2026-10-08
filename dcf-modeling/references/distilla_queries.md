@@ -189,7 +189,9 @@ SBU / EBU). When one field holds several breakdowns at once (Anta "Revenue": bra
 the listing warns that they overlap: keep one breakdown with `--keep` (repeat it per segment).
 The latest annual cell usually carries three years (Caterpillar FY2025: 2023–25). Save the rows to a file
 and run `python <skill_dir>/scripts/segments.py cells.json` to list the fields and segments, then
-`--revenue "<field>"` (plus `--units "<field>"` for a structured unit series) `--out segments.json`.
+`--revenue "<field>"` (plus `--units "<field>"` for a structured unit series and `--profit "<field>"` for
+segment operating profit — the listing marks profit candidates; check the margins it prints look like
+operating margins, not gross or pre-tax with interest) `--out segments.json`.
 Totals, consolidated and elimination rows are dropped; the model shows the gap to Distilla's revenue as
 "Other / eliminations" (intersegment sales). If the latest annual cell is older than the last actual
 year, add the cell for that year (or the full-year columns of the fourth-quarter cell) to the file.

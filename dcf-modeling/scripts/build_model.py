@@ -400,12 +400,23 @@ else:
     asb.line("g_live", "Revenue growth - active scenario", PCT, bold=True,
              hist=lambda j: None if j == 0 else f"={ref('Income Statement', 'growth', j)}",
              fc=live("g_base", "g_bull", "g_bear"))
-asb.hdr("EBIT margin")
-asb.line("m_base", "  Base", PCT, fc=inp(A["base"]["ebit_margin"]), key_fill=True)
-asb.line("m_bull", "  Bull", PCT, fc=inp(A["bull"]["ebit_margin"]))
-asb.line("m_bear", "  Bear", PCT, fc=inp(A["bear"]["ebit_margin"]))
-asb.line("m_live", "EBIT margin - active scenario", PCT, bold=True,
-         hist=lambda j: f"={ref('Income Statement', 'ebit_m', j)}", fc=live("m_base", "m_bull", "m_bear"))
+DMG = bool(DRV.get("margins_on"))
+if DMG:
+    # EBIT comes from segment margins on the Drivers tab; the company margins below are the draft result (memo).
+    asb.hdr("EBIT margin - set on the Drivers tab (segment margins); draft company result shown as memo")
+    asb.line("m_base", "  Base (memo: draft mix)", PCT, fc=lambda j: f"={A['base']['ebit_margin'][fc_idx(j)]}",
+             note="Memo only. Change margins on the Drivers tab: segment margins by scenario and the corporate line.")
+    asb.line("m_bull", "  Bull (memo: draft mix)", PCT, fc=lambda j: f"={A['bull']['ebit_margin'][fc_idx(j)]}")
+    asb.line("m_bear", "  Bear (memo: draft mix)", PCT, fc=lambda j: f"={A['bear']['ebit_margin'][fc_idx(j)]}")
+    asb.line("m_live", "EBIT margin - active scenario (from Drivers)", PCT, bold=True,
+             hist=lambda j: f"={ref('Income Statement', 'ebit_m', j)}", fc=lambda j: f"={ref('Income Statement', 'ebit_m', j)}")
+else:
+    asb.hdr("EBIT margin")
+    asb.line("m_base", "  Base", PCT, fc=inp(A["base"]["ebit_margin"]), key_fill=True)
+    asb.line("m_bull", "  Bull", PCT, fc=inp(A["bull"]["ebit_margin"]))
+    asb.line("m_bear", "  Bear", PCT, fc=inp(A["bear"]["ebit_margin"]))
+    asb.line("m_live", "EBIT margin - active scenario", PCT, bold=True,
+             hist=lambda j: f"={ref('Income Statement', 'ebit_m', j)}", fc=live("m_base", "m_bull", "m_bear"))
 RC = M.get("recurring_charges") or {}
 if RC.get("pct_rev"):
     asb.line("rc_memo", "  memo: basis gap already taken off (company basis -> Distilla EBIT basis)", PCT,
@@ -545,6 +556,18 @@ if DRV:
                  hist=(lambda key, hv: lambda j: (f"=IFERROR({ref(DRIVERS, key + '_r', j)}/{ref(DRIVERS, key + '_r', prev(j))}-1,0)"
                                                   if j > 0 and hv[j] is not None and hv[j - 1] is not None else None))(key, hv),
                  fc=(lambda key: lambda j: f"=IFERROR({ref(DRIVERS, key + '_r', j)}/{ref(DRIVERS, key + '_r', prev(j))}-1,0)")(key))
+        if DMG:
+            for sc in ("base", "bull", "bear"):
+                vals = DRV["margin"][sc][s]
+                drv.line(f"{key}_m_{sc}", f"  Profit margin - {sc.title()}", PCT,
+                         fc=(lambda vals: lambda j: vals[fc_idx(j)])(vals), key_fill=(sc == "base"))
+            ph = DRV["profit_hist"][s]
+            drv.line(f"{key}_m", "Profit margin - active scenario", PCT, bold=True,
+                     hist=(lambda key, ph: lambda j: (f"=IFERROR({ref(DRIVERS, key + '_op', j)}/{ref(DRIVERS, key + '_r', j)},0)"
+                                                      if ph[j] is not None else None))(key, ph),
+                     fc=d_live(f"{key}_m"))
+            drv.line(f"{key}_op", f"Segment profit - {s}", NUM, bold=True, hist=(lambda ph: lambda j: ph[j])(ph),
+                     fc=(lambda key: lambda j: f"={ref(DRIVERS, key + '_r', j)}*{ref(DRIVERS, key + '_m', j)}")(key))
     _complete = [all(DH[s][j] is not None for s in SEGS) for j in range(NH)]
     seg_sum_f = lambda j: "=" + "+".join(ref(DRIVERS, f"s{k}_r", j) for k in range(len(SEGS)))  # noqa: E731
     drv.hdr("Total revenue")
@@ -564,6 +587,33 @@ if DRV:
         drv.line("vs_cons", "Revenue vs consensus mean", PCT,
                  fc=lambda j: (f"=IFERROR({ref(DRIVERS, 'total', j)}/{ref('Assumptions', 'c_sales_mean', j)}-1,0)"
                                if FP[fc_idx(j)] in _cp else None))
+    if DMG:
+        # EBIT = segment profit + corporate / unallocated (Distilla EBIT - segment profit: corporate costs,
+        # restructuring, the basis gap between segment and consolidated profit), held as a % of revenue.
+        _pc = [all(DRV["profit_hist"][s][j] is not None for s in SEGS) for j in range(NH)]
+        op_sum_f = lambda j: "=" + "+".join(ref(DRIVERS, f"s{k}_op", j) for k in range(len(SEGS)))  # noqa: E731
+        drv.hdr("EBIT - segment margins (feeds the Model tab)")
+        drv.text("Draft: in consensus years the segment margins are calibrated so EBIT matches consensus EBIT (on "
+                 "Distilla's basis); later years follow each line's anchor, else the company-level path. Change any "
+                 "blue margin - EBIT follows.")
+        drv.line("op_sum", "Segment profit total", NUM, bold=True, hist=lambda j: op_sum_f(j) if _pc[j] else None, fc=op_sum_f)
+        drv.line("corp_pct", "Corporate / unallocated % of revenue", PCT,
+                 hist=lambda j: f"=IFERROR({ref(DRIVERS, 'corp', j)}/{ref(DRIVERS, 'total', j)},0)" if _pc[j] else None,
+                 fc=(lambda vals: lambda j: vals[fc_idx(j)])(DRV["corp_pct"]), key_fill=True,
+                 note="Held at the last actual year's share (all scenarios).")
+        drv.line("corp", "Corporate / unallocated (Distilla EBIT - segment profit)", NUM,
+                 hist=lambda j: (f"={raw('income_statement_ebit_operating_income', j)}-{ref(DRIVERS, 'op_sum', j)}"
+                                 if _pc[j] else None),
+                 fc=lambda j: f"={ref(DRIVERS, 'total', j)}*{ref(DRIVERS, 'corp_pct', j)}",
+                 note="Corporate costs, restructuring and other items not in segment profit.")
+        drv.line("ebit", "EBIT (feeds the Model tab)", NUM, bold=True, top=True, key_fill=True,
+                 hist=lambda j: f"={raw('income_statement_ebit_operating_income', j)}",
+                 fc=lambda j: f"={ref(DRIVERS, 'op_sum', j)}+{ref(DRIVERS, 'corp', j)}")
+        drv.line("ebit_m", "  EBIT margin %", PCT, hist=lambda j: f"=IFERROR({ref(DRIVERS, 'ebit', j)}/{ref(DRIVERS, 'total', j)},0)",
+                 fc=lambda j: f"=IFERROR({ref(DRIVERS, 'ebit', j)}/{ref(DRIVERS, 'total', j)},0)")
+        for sc in ("base", "bull", "bear"):
+            drv.line(f"cm_{sc}", f"  memo: company-level margin path - {sc.title()} (cross-check)", PCT,
+                     fc=(lambda vals: lambda j: vals[fc_idx(j)])(DRV["company_path"][sc]))
 
 # ---------------------------------------------------------------- Model tab
 # Four logical statements share one physical sheet. History links to Raw Data line by line;
@@ -594,7 +644,8 @@ isb.line("opex", "Operating expenses (SG&A, R&D, other)", NUM,
          hist=lambda j: f"={ref(IS, 'gp', j)}-{ref(IS, 'ebit', j)}", fc=lambda j: f"={ref(IS, 'rev', j)}*{ref('Assumptions', 'opex_pct', j)}",
          note="History: gross profit - EBIT (Distilla SG&A already includes R&D). Forecast: revenue x opex %.")
 isb.line("ebit", "EBIT (operating income)", NUM, bold=True, top=True, hist=link('income_statement_ebit_operating_income'),
-         fc=lambda j: f"={ref(IS, 'rev', j)}*{ref('Assumptions', 'm_live', j)}")
+         fc=(lambda j: f"={ref(DRIVERS, 'ebit', j)}") if DMG else
+         (lambda j: f"={ref(IS, 'rev', j)}*{ref('Assumptions', 'm_live', j)}"))
 isb.line("ebit_m", "  EBIT margin %", PCT, hist=lambda j: f"=IFERROR({ref(IS, 'ebit', j)}/{ref(IS, 'rev', j)},0)",
          fc=lambda j: f"=IFERROR({ref(IS, 'ebit', j)}/{ref(IS, 'rev', j)},0)")
 isb.line("da", "D&A (memo)", NUM, hist=link('cash_flow_depreciation_depletion_and_amortization'),

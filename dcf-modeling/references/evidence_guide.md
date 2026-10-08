@@ -92,6 +92,7 @@ Spend the questions where value is sensitive or a flag fired:
 | High growth years | Management revenue targets; TAM and share projections |
 | Tax far below statutory | Tax incentives and when they expire |
 | Drivers tab on | Per segment: volume (backlog, shipments, units, capacity) and price (realization, ASP) guidance; broker summaries stating segment growth, units or ASPs - cite broker, title, date |
+| Segment margins on | Per segment: margin targets or ranges from guidance or investor days; broker summaries stating segment margins or segment profit - cite broker, title, date |
 
 ## 4. Rules
 

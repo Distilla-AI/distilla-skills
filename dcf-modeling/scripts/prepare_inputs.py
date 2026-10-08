@@ -145,13 +145,14 @@ def add_years(date_str, n):
 
 
 # ---------------------------------------------------------------- revenue drivers
-def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anchors, idx_of, flags):
+def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anchors, idx_of, flags, ebit=None):
     """Segment revenue drivers for the Drivers tab, or None (single growth rate) with the reason flagged.
 
     SEG = raw.json["segments"]: {"revenue": {line: {end_date: value}}, "units": {line: {...}} (optional),
     "units_unit", "source", "basis_type" (business segments | product / service | market x share | geography | kpi),
     "line_sources": {line: text}, "hold": [...],
-    "drivers": {line: {scenario: {"volume" | "market" + "share" | "price": {year: v}}, "basis": text}}}.
+    "drivers": {line: {scenario: {"volume" | "market" + "share" | "price" | "margin": {year: v}}, "basis": text}},
+    "profit": {line: {end_date: value}} (optional: segment operating profit -> EBIT from segment margins)}.
     A line need not be a reported segment: a product / service split (new equipment vs services), market x
     share, a region or a KPI line works the same way when its history is sourced. Where a line has "market"
     (market growth) and optionally "share" (share change) for a year, volume = (1 + market)(1 + share) - 1.
@@ -239,7 +240,26 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
                 return float(v)
         return None
 
+    # Segment margins (option A): when every line has profit history for the last actual year, EBIT is built
+    # from segment margins plus a corporate / unallocated line (Distilla EBIT - segment profit: corporate costs,
+    # restructuring, the basis gap), held as a % of revenue.
+    phist = {s: match((SEG.get("profit") or {}).get(s, {})) for s in names}
+    margins_on = bool(SEG.get("profit")) and ebit is not None and all(phist[s][-1] is not None for s in names) \
+        and all(hist[s][-1] for s in names)
+    if SEG.get("profit") and not margins_on:
+        flags.append("SEGMENT MARGINS not used: profit history does not cover every line in the last actual year - "
+                     "EBIT stays on the company-level margin.")
+    corp_hist, corp_pct = None, None
+    if margins_on:
+        corp_hist = [(ebit[i] - sum(phist[s][i] for s in names)) if all(phist[s][i] is not None for s in names)
+                     and ebit[i] is not None else None for i in range(len(periods))]
+        corp_pct = corp_hist[-1] / rev[-1] if rev[-1] else 0.0
+        if abs(corp_pct) > 0.05:
+            flags.append(f"SEGMENT MARGINS: corporate / unallocated is {corp_pct:+.1%} of revenue (Distilla EBIT less "
+                         "segment profit: corporate costs, restructuring, basis gap); held at that share.")
     out = {"segments": names, "hist": hist, "other_hist": other, "units": units,
+           "margins_on": margins_on, "profit_hist": phist, "corp_hist": corp_hist,
+           "corp_pct": [round(corp_pct, 6)] * N if margins_on else None, "margin": {}, "company_margin": {},
            "basis_type": SEG.get("basis_type", "business segments"),
            "line_sources": {s: (SEG.get("line_sources") or {}).get(s, "") for s in names},
            "market": {sc: {s: [raw_anchor(s, sc, "market", i) for i in range(N)] for s in names} for sc in scen},
@@ -256,6 +276,7 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
         vol = {s: [] for s in names}
         pr = {s: [] for s in names}
         tot_g = []
+        Rpath, Tpath = {s: [] for s in names}, []
         level, L = [], rev[-1]  # the scenario's revenue level each year: pinned years aim at the level, so a year
         for g_ in target_g:     # left off-consensus (every line anchored) does not carry its gap forward
             L *= 1 + g_
@@ -289,12 +310,47 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
                 vol[s].append(round(v_use[s], 6))
                 pr[s].append(round(p_use[s], 6))
                 R[s] = R[s] * (1 + v_use[s]) * (1 + p_use[s])
+                Rpath[s].append(R[s])
                 S += R[s]
             O = O * (S / S_prev) if S_prev else O
             T = S + O
+            Tpath.append(T)
             tot_g.append(T / T_prev - 1 if T_prev else 0.0)
             S_prev, T_prev = S, T
         out["scen"][sc] = {s: {"volume": vol[s], "price": pr[s]} for s in names}
+        if margins_on:
+            path = scen[sc]["ebit_margin"]  # company-level path: consensus (Distilla basis), anchors, peak guard
+            last_act = ebit[-1] / rev[-1] if rev[-1] else 0.0
+            m_prev = {s: phist[s][-1] / hist[s][-1] for s in names}
+            m_ref, ref_c = dict(m_prev), last_act
+            mg, comp, pin_m = {s: [] for s in names}, [], -1
+            for i in range(N):
+                T_ = Tpath[i]
+                m_a = {s: anchor(s, sc, "margin", i) for s in names}
+                if i < ncons:  # consensus years: segment margins calibrated so total EBIT = consensus EBIT
+                    base_m = {s: (m_a[s] if m_a[s] is not None else m_prev[s]) for s in names}
+                    free = [s for s in names if m_a[s] is None and s not in hold]
+                    fixed = sum(Rpath[s][i] * base_m[s] for s in names) + corp_pct * T_
+                    den = sum(Rpath[s][i] for s in free)
+                    d_ = (path[i] * T_ - fixed) / den if den else 0.0
+                    m_use = {s: base_m[s] + (d_ if s in free else 0.0) for s in names}
+                    pin_m = i
+                    m_ref, ref_c = dict(m_use), path[i]
+                else:  # after consensus: the line's own anchor, else in proportion to the company-level path
+                    sc_ = path[i] / ref_c if ref_c else 1.0
+                    m_use = {s: (m_a[s] if m_a[s] is not None else m_ref[s] if s in hold else m_ref[s] * sc_)
+                             for s in names}
+                for s in names:
+                    mg[s].append(round(m_use[s], 6))
+                m_prev = m_use
+                comp.append((sum(Rpath[s][i] * m_use[s] for s in names) + corp_pct * T_) / T_ if T_ else 0.0)
+            out["margin"][sc] = mg
+            out.setdefault("company_path", {})[sc] = [round(x, 6) for x in path]
+            out["margin_pinned"] = [i <= pin_m for i in range(N)]
+            out["company_margin"][sc] = comp
+            if abs(comp[-1] - path[-1]) > 0.02:
+                flags.append(f"SEGMENT MARGINS ({sc}): the mix gives a terminal EBIT margin of {comp[-1]:.1%} against the "
+                             f"company-level path's {path[-1]:.1%} - say which segment drives the difference.")
         out["total_growth"][sc] = tot_g
         out["pinned"][sc] = pinned
         anchored = [s for s in names if (seg_anchor.get(s) or {}).get(sc)]
@@ -896,10 +952,16 @@ def main():
     # without their own volume anchor makes the total match exactly. Other years run on the segment drivers,
     # fading to terminal growth (volume) and zero (price). "Other / eliminations" grows with the segment sum.
     drivers = build_drivers(raw.get("segments") or {}, periods, rev, fc_periods, N, ncons, scen, g_term,
-                            (anchors.get("revenue_growth") or {}), idx_of, flags)
+                            (anchors.get("revenue_growth") or {}), idx_of, flags, ebit=ebit)
     if drivers:
         for sc in scen:
             scen[sc]["revenue_growth"] = drivers["total_growth"][sc]
+            if drivers.get("margins_on"):
+                scen[sc]["ebit_margin"] = drivers["company_margin"][sc]
+                basis["ebit_margin"][sc] = {"type": "segment margins",
+                                            "text": "segment margins on the Drivers tab: calibrated to consensus EBIT in "
+                                                    "consensus years, then each line's anchor or the company-level path "
+                                                    "(" + basis["ebit_margin"][sc]["text"] + "); total = mix"}
             if drivers["pinned"][sc] != [True] * N:
                 basis["revenue_growth"][sc] = {
                     "type": "drivers",
@@ -1149,6 +1211,10 @@ def main():
             row(f"  {s_[:20]} vol", d_["volume"])
             if any(abs(x) > 1e-9 for x in d_["price"]):
                 row(f"  {s_[:20]} price", d_["price"])
+        if drivers.get("margins_on"):
+            for s_ in drivers["segments"]:
+                row(f"  {s_[:20]} margin", drivers["margin"]["base"][s_])
+            print(f"  corporate / unallocated {drivers['corp_pct'][0]:+.1%} of revenue (held)")
         print(f"  other / eliminations last actual {drivers['other_hist'][-1]:,.0f} "
               f"({drivers['other_hist'][-1] / rev[-1]:+.1%} of revenue); pinned years: "
               f"{sum(drivers['pinned']['base'])} of {N}")

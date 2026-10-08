@@ -221,13 +221,16 @@ separately; see the field notes.
 **Segments (Drivers tab).** Read the latest full-year `by_segment_financials` cell (it carries about three
 years; distilla_queries.md section 5c), save the rows, run `scripts/segments.py` on them to list the
 fields, then again with `--revenue "<field>"` (and `--units "<field>"` where Distilla reports a unit
-series, e.g. wholesale vehicles) and put the output in `raw.json["segments"]`. When the latest annual
+series, e.g. wholesale vehicles, and `--profit "<field>"` where the cell has segment operating profit) and
+put the output in `raw.json["segments"]`. With profit for every line in the last actual year, EBIT is built
+from segment margins plus a corporate / unallocated line (Distilla EBIT less segment profit, held as a % of
+revenue); otherwise EBIT stays on the company-level margin and the script says why. When the latest annual
 cell predates the last actual year, add the current year's quarterly / half-year cells: the script joins
 a year-to-date period with the quarter that completes it. Give `--revenue` twice for a label that changed
 between filings, `--rename` for segment names that differ between cells, `--exclude` for a wound-down
 segment (its history moves into other / eliminations). A unit year Distilla lacks comes from the annual
 report (`†`). Keep a finance segment — its revenue is in consolidated revenue — and list it in
-`segments.hold` so it keeps its own trend instead of absorbing the calibration. When segments are
+`segments.hold` so it keeps its own trend (and its margin) instead of absorbing the calibration. When segments are
 missing, too few or do not cover the last actual year, the script says so and keeps the single growth
 rate.
 
@@ -320,6 +323,11 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
    consensus; anchoring every line is a deliberate off-consensus view and shows as a variance. When brokers state
    views by product rather than by segment (DRAM / NAND / HBM bits and prices), say how you mapped them to
    segments. Where brokers disagree on a driver, that spread sets bull and bear.
+   **Segment margins** (when profit history is in): anchor a line's `margin` by year where guidance or a
+   note gives it (Power & Energy margin target, a segment's cycle-low margin); in consensus years the
+   unanchored lines shift by a common amount so EBIT still matches consensus. After consensus an
+   unanchored line moves in proportion to the company-level margin path (anchors and peak guard), so the
+   company margin is the mix result; a held line keeps its margin flat.
 Rerun prepare_inputs.py; evidence, anchors and return policy live in raw.json, so nothing is lost.
 
 ### 5. Checkpoint — stop and get confirmation
@@ -329,7 +337,8 @@ draft value. Then present, compactly, in chat:
   consensus-anchored. With the Drivers tab: what the lines are (business segments, product / service,
   market × share, geography, KPI), the base volume and price growth for each line, the
   other / eliminations line, and each driver's basis (guidance / broker view / history / calibrated /
-  formula, no evidence).
+  formula, no evidence). With segment margins: each line's base margin path, the corporate line, and the
+  mix-built company margin against the company-level path (the script flags a terminal gap over 2 points).
 - WACC and terminal growth, each input tagged *live* or *default*, and beside them the discount
   rates the broker notes state with the value per share at their median rate (or "none stated").
 - **Draft value per share** for base, bull and bear against the price, and what the price implies
@@ -360,7 +369,8 @@ Edit `model_inputs.json` directly. Useful keys:
 - `include_lt_investments` (1/0)
 - `raw.json["assumption_overrides"]` takes one value for every year, a per-year list, or `{"2027": x}` for
   single years (e.g. capex from guidance), and survives a re-draft
-- `drivers.scen.base|bull|bear.<segment>.volume|price` — per-year lists (or edit the Drivers tab directly);
+- `drivers.scen.base|bull|bear.<segment>.volume|price` and `drivers.margin.base|bull|bear.<segment>` —
+  per-year lists (or edit the Drivers tab directly);
   driver anchors that must survive a re-draft go in `raw.json["segments"]["drivers"]`
 
 To change the horizon, rerun prepare_inputs.py with `--years N` (this redrafts, so reapply edits).
@@ -414,7 +424,7 @@ Before delivering, state PASS or FAIL for each check below with cited evidence (
 | Tab | Contents |
 |---|---|
 | Summary | Value per share, upside, EV, WACC, checks status, forecast snapshot, key-assumption basis table (formula-only items in red), evidence table (finding, stance, source, date, effect), model notes, flags |
-| Drivers | When segment data allows: each segment's volume and price growth (Base / Bull / Bear, active scenario), units and revenue per unit where a unit series exists, segment revenue, other / eliminations, total revenue (feeds the Model tab) and its variance to consensus |
+| Drivers | When segment data allows: each segment's volume and price growth (Base / Bull / Bear, active scenario), units and revenue per unit where a unit series exists, segment revenue, other / eliminations, total revenue (feeds the Model tab) and its variance to consensus; with segment profit, each segment's margin (Base / Bull / Bear, active) and profit, the corporate / unallocated line and EBIT (feeds the Model tab), with the company-level margin path as a memo cross-check |
 | Assumptions | Scenario switch; Base/Bull/Bear growth and margin; all drivers with history alongside; consensus memo |
 | Model | Income Statement → Balance Sheet → Cash Flow → Schedules (working capital, PP&E, debt, leases, equity) stacked on one tab, same column = same year, each section a collapsible group. History links to Raw Data line by line; every subtotal is a real sum |
 | DCF | Bridge and WACC inputs with sources, UFCF build with stub period, perpetuity-growth terminal value, equity bridge; terminal-multiple cross-check; reverse DCF (growth or margin the price implies); terminal reinvestment check |

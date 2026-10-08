@@ -5,7 +5,8 @@ segments.py - turn Distilla `by_segment_financials` cells into a clean annual se
 Usage:
     python segments.py cells.json                      # list the fields, segments and years found
     python segments.py cells.json --revenue "Sales and revenues" [--revenue "Total sales and revenues"]
-                       [--units "Wholesale vehicle sales"] [--exclude "Cruise"] [--rename "CMBU=Cloud Memory"]
+                       [--units "Wholesale vehicle sales"] [--profit "Segment profit"] [--exclude "Cruise"]
+                       [--rename "CMBU=Cloud Memory"]
                        [--out segments.json]
 
 cells.json is the `query_entity` result on `ku_cell` for `by_segment_financials` (the rows, or the whole
@@ -21,7 +22,9 @@ dropped (the model rebuilds the total and shows the gap to Distilla's revenue as
 When two cells give the same segment-year, the cell published later wins.
 
 The output goes into raw.json["segments"] as {"field", "unit", "revenue": {segment: {end_date: value}},
-"units": {...}, "units_field", "source"}; prepare_inputs.py checks it against consolidated revenue.
+"units": {...}, "units_field", "profit": {...}, "profit_field", "source"}; prepare_inputs.py checks it against
+consolidated revenue. --profit takes the segment operating profit field (segment profit, operating income,
+segment EBIT); with it the Drivers tab builds EBIT from segment margins.
 """
 import argparse
 import datetime as dt
@@ -33,6 +36,7 @@ from collections import defaultdict
 TOTAL_LIKE = re.compile(r"\b(total|consolidated|reportable segments|elimination|reconcil|corporate|intersegment|"
                         r"inter-segment|adjustment)\b", re.I)
 REVENUE_LIKE = re.compile(r"^(?!.*\bcost of\b)(?!.*/cost\b).*(sales|revenue)", re.I)
+PROFIT_LIKE = re.compile(r"(segment (profit|result)|operating (profit|income)|\bebita?\b|profit \(loss\))", re.I)
 
 
 def num(v):
@@ -85,6 +89,7 @@ def main():
     ap.add_argument("cells")
     ap.add_argument("--revenue", action="append")
     ap.add_argument("--units", action="append")
+    ap.add_argument("--profit", action="append")
     ap.add_argument("--rename", action="append", default=[], help="OLD=NEW segment name")
     ap.add_argument("--exclude", action="append", default=[])
     ap.add_argument("--keep", action="append", default=[],
@@ -134,7 +139,7 @@ def main():
         print("Fields with full-year values (segments in each):")
         for f, segs in sorted(fields.items(), key=lambda x: -len(x[1])):
             years = sorted({k[2][:4] for k in best if k[0] == f})
-            mark = "  <- revenue candidate" if REVENUE_LIKE.search(f) else ""
+            mark = "  <- revenue candidate" if REVENUE_LIKE.search(f) else "  <- profit candidate" if PROFIT_LIKE.search(f) else ""
             print(f"  {f!r}: {len(segs)} segments, years {years}{mark}")
             for s in sorted(segs):
                 print(f"      {'(dropped: total-like) ' if TOTAL_LIKE.search(s) else ''}{s}")
@@ -148,7 +153,8 @@ def main():
                         print(f"      ! {y}: segments sum to {sum(parts):,.0f}, {sum(parts) / max(tots):.1f}x the total "
                               f"{max(tots):,.0f} - several breakdowns overlap; pick one with --keep")
                         break
-        print("\nRe-run with --revenue \"<field>\" (and --units \"<field>\" where a unit series exists).")
+        print("\nRe-run with --revenue \"<field>\" (and --units \"<field>\" where a unit series exists, --profit \"<field>\" "
+              "where segment operating profit exists).")
         return
 
     def table(field_list):
@@ -171,6 +177,9 @@ def main():
     if a.units:
         units, uunit = table(a.units)
         res.update({"units_field": " | ".join(a.units), "units_unit": uunit, "units": units})
+    if a.profit:
+        profit, _ = table(a.profit)
+        res.update({"profit_field": " | ".join(a.profit), "profit": {s: d for s, d in profit.items() if s in rev}})
     years = sorted({e for d in rev.values() for e in d})
     print(f"Segments ({len(rev)}): {', '.join(rev)}")
     print(f"Years: {', '.join(y[:4] for y in years)}   unit: {unit}")
@@ -181,6 +190,11 @@ def main():
         for s, d in res["units"].items():
             per = "; ".join(f"{y[:4]}: {d[y]:,.1f} units, {rev[s][y] / d[y]:,.2f} revenue/unit" for y in d if rev.get(s, {}).get(y) and d[y])
             print(f"  units {s}: {per}")
+    if a.profit:
+        for s in rev:
+            d = res["profit"].get(s, {})
+            per = "; ".join(f"{y[:4]}: {d[y] / rev[s][y]:.1%}" for y in sorted(d) if rev[s].get(y))
+            print(f"  margin {s}: {per or 'no profit rows - check the label or --rename'}")
     if joined:
         print(f"Joined from year-to-date + quarter: {', '.join(sorted(joined))}")
     if a.exclude:
