@@ -3,7 +3,7 @@ name: dcf-modeling
 description: Build a full 3-statement financial model (income statement, balance sheet, cash flow) and a DCF valuation in Excel with live formulas, using Distilla MCP data (actuals, consensus estimates, prices) for listed companies in Distilla's coverage. Use this skill whenever the user asks to value a company, build a DCF, do a discounted cash flow, build a 3-statement or three-statement model, estimate intrinsic or fair value, work out what a stock is worth, or asks for a financial model or valuation model of a listed company, even if they don't say "DCF" or "Distilla". Also use it for bull/bear/base scenario valuations, WACC-and-terminal-growth sensitivity tables, or updating a model built earlier with this skill. Do NOT use for a first-pass screen with a verdict (initial-screen), why a multiple re-rated (valuation-compression-recovery), a peer multiple comparison (peer-benchmarking), a long/short pitch with catalyst and R/R (long-short-ideas), or an investment committee review (fundamental-guru).
 ---
 
-**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary. Building the workbook needs Python with openpyxl; recalculation uses the host's spreadsheet recalculation tool if it has one, else `scripts/recalc.py` (Python `formulas` package).
+**Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary. Building the workbook needs Python with openpyxl; recalculation uses the host's spreadsheet recalculation tool if it has one, else `scripts/recalc.py` (Python `formulas` package). Packages are listed in `requirements.txt`; `scripts/check_env.py` tests them before the work starts.
 
 # Distilla 3-statement + DCF model
 
@@ -18,6 +18,9 @@ structural).
 
 ## Files
 
+- `scripts/check_env.py` — preflight: builds and recalculates a two-cell test workbook and reports
+  whether this host can run the full build (`full`), build only (`build_only`) or not at all.
+- `requirements.txt` — the Python packages the scripts use (openpyxl; `formulas` for recalculation).
 - `scripts/prepare_inputs.py` — cleans Distilla output, drafts Base/Bull/Bear assumptions, fills
   flagged WACC defaults, prints the checkpoint summary.
 - `scripts/build_model.py` — writes the live-formula workbook (7 tabs).
@@ -198,6 +201,12 @@ the company name and `company.summary` too.
   forecast:** tell the user before building and ask whether to proceed.
 
 ## Workflow
+
+**Preflight (before any data work):** run `python <skill_dir>/scripts/check_env.py`. `full` → proceed.
+`build_only` or `no_workbook` → if the host allows package installs, `pip install -r <skill_dir>/requirements.txt`
+and run the check again. Still `build_only` → proceed, and step 7 delivers the workbook marked "not recalculated
+or verified here". Still `no_workbook` → tell the user the workbook cannot be built on this host, and offer the
+analysis without it, before any data work. Never use any other package to stand in for a missing one.
 
 ### 1. Pull the data
 Load the Distilla tools (if tool loading is deferred, use the host's discovery mechanism). Follow
