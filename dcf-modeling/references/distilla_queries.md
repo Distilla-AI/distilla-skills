@@ -1,0 +1,192 @@
+# Distilla data pull — query recipes and gotchas
+
+Read this before querying. Every step below was tested against live Distilla data
+(Apple, Samsung Electronics). Follow the order; each step feeds `raw.json`.
+
+## Contents
+1. Resolve the company and its sector
+2. Annual actuals (one query)
+3. Latest quarterly balance sheet (equity bridge)
+4. Consensus estimates
+5. Share price and target
+6. Sanity checks before writing raw.json
+7. raw.json schema
+8. Gotchas (read this)
+
+---
+
+## 1. Resolve the company and its sector
+
+```
+query_entity(entity="company",
+  filters=[{"field":"symbol","op":"in","value":["AAPL"]}],
+  select=["id","name","symbol","hq_country","sector_id"])
+```
+Symbol formats: US plain (`AAPL`), Korea `005930.KS` / `.KQ`, Hong Kong `0700.HK`, Japan and
+China per Distilla's ticker registry — if a lookup misses, query `ticker` by symbol or `company`
+by `name`. Then look up the sector name:
+```
+query_entity(entity="sector", filters=[{"field":"id","op":"eq","value":<sector_id>}])
+```
+**Stop here for financials** — see SKILL.md "When not to build a DCF".
+Financial sector ids: 292 Retail & Commercial Banking, 279 Insurance, 271 Capital Markets &
+Investment Banking, 281 Lending & Specialty Finance, 274 Diversified Financial Services,
+288 Real Estate Finance. Caution (build, but warn): 289 REITs, 269 Asset & Wealth Management,
+280 Investment Services.
+
+## 2. Annual actuals — one query, ~280 rows
+
+```
+query_entity(entity="financial_data_point",
+  joins=[{"relation":"time_period","alias":"T"},{"relation":"financial_metric","alias":"M"}],
+  filters=[
+    {"field":"T.company_id","op":"eq","value":<id>},
+    {"field":"T.provenance","op":"eq","value":"financials"},
+    {"field":"T.duration","op":"eq","value":"year"},
+    {"field":"T.end_date","op":"gte","value":"<5 fiscal years back, e.g. 2021-06-01>"},
+    {"field":"M.name","op":"in","value":[ ...METRICS... ]}],
+  select=["M.name","value","T.end_date"],
+  sort=[{"field":"M.name","direction":"asc"},{"field":"T.end_date","direction":"asc"}],
+  limit=300)
+```
+METRICS (56 — every line the Model tab itemises; tested on Apple, Samsung, BYD, Fast Retailing).
+Every Distilla subtotal is a clean sum of these lines, which is what lets the model reconcile history
+line by line instead of plugging:
+
+Income statement (11): `income_statement_sales, income_statement_cost_of_goods_sold_cogs_incl_d_and_a,
+income_statement_ebit_operating_income, income_statement_nonoperating_interest_income,
+income_statement_interest_expense, income_statement_pretax_income, income_statement_income_taxes,
+income_statement_minority_interest, income_statement_net_income,
+income_statement_diluted_shares_outstanding, income_statement_dividends_per_share`
+
+Balance sheet (24): `balance_sheet_cash_and_short_term_investments, balance_sheet_short_term_receivables,
+balance_sheet_inventories, balance_sheet_other_current_assets, balance_sheet_total_current_assets,
+balance_sheet_net_property_plant_and_equipment, balance_sheet_total_long_term_investments,
+balance_sheet_intangible_assets, balance_sheet_deferred_tax_assets, balance_sheet_other_assets,
+balance_sheet_total_assets, balance_sheet_short_term_debt_and_curr_portion_long_term_debt,
+balance_sheet_accounts_payable, balance_sheet_income_tax_payable, balance_sheet_other_current_liabilities,
+balance_sheet_total_current_liabilities, balance_sheet_long_term_debt_excl_lease_obligations,
+balance_sheet_capital_and_operating_lease_obligations, balance_sheet_provision_for_risks_and_charges,
+balance_sheet_deferred_tax_liabilities, balance_sheet_other_liabilities, balance_sheet_total_liabilities,
+balance_sheet_total_shareholders_equity, balance_sheet_accumulated_minority_interest`
+
+Cash flow (21): `cash_flow_depreciation_depletion_and_amortization, cash_flow_deferred_taxes,
+cash_flow_funds_from_operations, cash_flow_changes_in_working_capital, cash_flow_net_operating_cash_flow,
+cash_flow_capital_expenditures, cash_flow_capital_expenditures_fixed_assets,
+cash_flow_net_assets_from_acquisitions, cash_flow_sale_of_fixed_assets_and_businesses,
+cash_flow_purchase_or_sale_of_investments, cash_flow_other_investing_funds,
+cash_flow_net_investing_cash_flow, cash_flow_cash_dividends_paid,
+cash_flow_repurchase_of_common_and_preferred_stock, cash_flow_sale_of_common_and_preferred_stock,
+cash_flow_issuance_or_reduction_of_debt_net, cash_flow_repayments_of_operating_lease_liabilities,
+cash_flow_other_financing_funds, cash_flow_net_financing_cash_flow, cash_flow_exchange_rate_effect,
+cash_flow_net_change_in_cash`
+(`cash_flow_capital_expenditures_fixed_assets` only feeds the Distilla-definition FCF memo line.)
+
+56 metrics × 5 years = 280 rows, which fits under the 300-row limit. If it comes back truncated, split
+into two queries (IS + BS, then CF).
+
+Optional fallbacks if a core line comes back "-": `balance_sheet_long_term_debt` (total incl. leases),
+`balance_sheet_goodwill`, `balance_sheet_other_intangible_assets`,
+`income_statement_depreciation_and_amortization_expense`. Do **not** add
+`balance_sheet_long_term_note_receivable`: it is already inside other lines (adding it double-counts —
+seen on Samsung).
+
+## 3. Latest quarterly balance sheet (for the equity bridge)
+
+Same query shape with `T.duration = "quarter"`, `T.end_date >= <~6 months ago>`, sorted by
+`T.end_date desc`, metrics: cash, total LT investments, ST debt, LT debt excl. leases, lease
+obligations, accumulated minority interest, diluted shares. Use the most recent quarter-end.
+If the latest quarter is the fiscal year-end, the annual figures are the bridge.
+
+## 4. Consensus estimates
+
+Consensus metric ids: sales_mean 1, sales_high 5, sales_low 6, gross_inc_mean 7, ebitda_mean 13,
+ebit_mean 19, ebit_high 23, ebit_low 24, capex_mean 61 (verify with `consensus_metric` if a query looks
+off). gross_inc_mean drives opex %, and ebitda_mean − ebit_mean gives consensus D&A; both matter.
+```
+query_entity(entity="consensus_data_point",
+  joins=[{"relation":"time_period","alias":"T"},{"relation":"consensus_metric","alias":"C"}],
+  filters=[
+    {"field":"T.company_id","op":"eq","value":<id>},
+    {"field":"T.duration","op":"eq","value":"year"},
+    {"field":"T.end_date","op":"gte","value":"<day after last actual FYE>"},
+    {"field":"consensus_metric_id","op":"in","value":[1,5,6,7,13,19,23,24,61]},
+    {"field":"consensus_date","op":"gte","value":"<~10 days ago>"}],
+  select=["C.name","value","consensus_date","T.end_date"],
+  sort=[{"field":"consensus_date","direction":"desc"}], limit=60)
+```
+Keep only the latest `consensus_date` per (metric, period) — prepare_inputs.py does this if you
+pass rows. `consensus_date` is the snapshot vintage, never the fiscal period.
+
+## 5. Share price and target
+
+```
+query_entity(entity="stock_price",
+  filters=[{"field":"company_id","op":"eq","value":<id>},{"field":"date","op":"gte","value":"<~7 days ago>"}],
+  select=["symbol","date","close","sell_side_target_price","currency"],
+  sort=[{"field":"date","direction":"desc"}], limit=1)
+```
+
+## 6. Sanity checks before writing raw.json
+
+- **Consensus units vs actuals.** Compare FY1 consensus sales with the last actual year and with
+  the sum of reported quarters in the current fiscal year. A 1000x gap means a units mismatch;
+  a large but real jump (e.g. a memory up-cycle) will be visible in the quarterly actuals too.
+- **Price currency vs reporting currency.** If they differ (ADRs, dual listings, HK-listed
+  companies reporting in CNY such as BYD), find an FX rate by web search and set
+  `fx_reporting_per_price` = reporting-currency units per 1 unit of price currency (BYD: 0.867 CNY
+  per HKD). The risk-free rate must be the one for the **reporting currency** (BYD: China 10y, not HK).
+- **Accounting standard.** Set `company.accounting_standard` when known (`US_GAAP`, `IFRS`, `J_GAAP`,
+  `CAS`). Japan mixes J-GAAP and IFRS, so for JP companies check it (web search "<company> IFRS").
+- **Share classes.** Distilla diluted shares can include preferred / non-voting classes (Samsung:
+  ~6.7bn incl. preferred). Value per share is then per combined share; say so in the summary.
+
+## 7. raw.json schema
+
+```json
+{
+ "company": {"name":"...","ticker":"...","distilla_company_id":0,"hq_country":"US|KR|JP|CN|HK",
+             "sector":"<Distilla sector name>","reporting_currency":"USD","units":"m"},
+ "valuation_date": "YYYY-MM-DD",
+ "annual":    {"<metric>": {"<end_date>": "<value as delivered>"}},   // or the raw row list
+ "consensus": {"sales_mean": {"<end_date>": "<value>"}, ...},          // or the raw row list
+ "market": {"price":0,"price_date":"","price_currency":"","fx_reporting_per_price":1.0,
+            "fx_source":"","target_price":0},
+ "bridge": {"as_of":"YYYY-MM-DD","source":"","cash":0,"lt_investments":0,"st_debt":0,
+            "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0},
+ "include_lt_investments": 1,
+ "wacc": {"rf":0.0,"rf_source":"","beta":null,"beta_source":"","erp":null,"erp_source":"",
+          "crp":null,"crp_source":"","kd_pretax":null,"terminal_growth":null,
+          "beta_published":[1.09,0.92],"beta_published_sources":"Yahoo 5Y monthly 1.09; GuruFocus 0.92"},
+ "long_history": {"income_statement_sales": {...}, "income_statement_ebit_operating_income": {...}},
+ "anchors": {...}, "evidence": [...], "returns": {...}   // from the evidence step; see evidence_guide.md
+}
+```
+Paste Distilla values exactly as delivered ("1,234.00", "-"); the script parses them. `annual`
+and `consensus` accept either the pivoted form above (compact — preferred) or the raw row lists.
+Leave any WACC field `null` that you could not source live; the script fills a flagged default.
+
+## 8. Gotchas
+
+| Issue | What to do |
+|---|---|
+| Values are text with commas; `"-"` = not reported | Paste as-is; the script parses |
+| Units: `m` = millions of the reporting currency (Samsung revenue `333,605,938` = ₩333.6tn) | Keep the model in reporting-currency millions; per-share values are full currency units |
+| Shares are in millions (`15,004.70` = 15.0bn) | Same unit everywhere, so value/share works out |
+| Capex, dividends, buybacks, lease repayments are negative in cash flow | Paste as-is |
+| `fiscal_year` labels unreliable | Always identify periods by `T.end_date` |
+| `provenance = "filing"` periods are LLM-derived | Use only `provenance = "financials"` for actuals |
+| `stock_price.market_cap` scale is inconsistent (Samsung off by ~1000x) | Never use it; model computes price × FX × diluted shares |
+| SG&A already includes R&D | Model derives opex = gross profit − EBIT, so EBIT ties exactly |
+| Interest expense/income often blank in recent years | Model uses pretax − EBIT for historical non-operating |
+| Quarterly lease obligations often 0 / missing | Use the latest annual lease figure; note it in `leases_source` |
+| Lease principal repayments are a separate financing line for IFRS lessees (Fast Retailing ¥140bn/yr) | Include `cash_flow_repayments_of_operating_lease_liabilities`, or cash from financing will not tie |
+| Consensus EBITDA can be "adjusted" (excludes SBC) while consensus EBIT is GAAP (Duolingo) | prepare_inputs.py detects it and ignores consensus EBITDA for D&A and exit multiples |
+| Research library / KUs can be empty for a company (Duolingo) | Fall back to company_drivers and the company's own filings (web search for targets); record that the library had nothing |
+| Distilla FCF = CFO − **fixed-asset** capex only | Model FCF deducts all capex incl. intangibles (Samsung: ₩2–5tn/yr difference); memo line shows Distilla's |
+| Tax lines can be benefits (negative) | Script ignores benefit years when setting the rate |
+| Minority interest (IS) is positive = deduction | Paste as-is; residual goes to "other after-tax items" |
+| Distilla's own balance sheet can fail to balance (BYD FY2021: ¥4.5bn, 1.5% of assets) | Shown on the "Unreconciled (equity / other instruments)" line and flagged; mention it to the user |
+| Small rounding in Distilla subtotals (Fast Retailing: ¥2–5m on ¥ trillions) | Tie checks use a 0.01%-of-revenue tolerance |
+| Large 52/53-week FYE dates (Sep 29, Dec 30, Aug 29) | Fine — forecast dates snap to month-end |
+| First forecast year already ended but not yet reported (Fast Retailing, Aug FYE) | Handled: only cash flows after the bridge balance-sheet date are counted |
