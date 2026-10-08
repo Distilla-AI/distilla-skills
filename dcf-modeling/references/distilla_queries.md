@@ -236,8 +236,10 @@ year, add the cell for that year (or the full-year columns of the fourth-quarter
  "basis_gap": {"adjusted_by_year": {"2025": 0, "2024": 0, "2023": 0}, "source": ""},   // company's own operating profit; or {"none": true, "reason": ""}
  "continuing_history": {"income_statement_sales": {}, "income_statement_ebit_operating_income": {}, "source": ""},   // after a divestiture; omit otherwise
  "segments": {"field":"","unit":"","revenue":{"<segment>":{"YYYY-MM-DD":0}},"units":{},"units_unit":"","source":"",
+              "basis_type":"business segments | product / service | market x share | geography | kpi",
+              "line_sources":{"<line>":"<where each year's history came from>"},   // lines you wrote yourself
               "hold":["<finance segment>"],   // keep their own trend, out of the calibration
-              "drivers":{"<segment>":{"base":{"volume":{"2027":0.05},"price":{"2027":0.02}},"bull":{},"bear":{},
+              "drivers":{"<segment>":{"base":{"volume":{"2027":0.05},"price":{"2027":0.02}},"bull":{},"bear":{},  // or "market" + "share" instead of "volume"
                                       "basis":"<guidance / broker view (broker, title, date) / history>"}}},   // segments.py output + anchors
  "broker_discount_rates": [{"broker": "", "date": "YYYY-MM-DD", "rate": 0.0, "basis": "WACC | cost of equity"}],
  "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0,

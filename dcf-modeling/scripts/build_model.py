@@ -500,7 +500,8 @@ if "sales_mean" in CS:
 if DRV:
     drv = SB(DRIVERS, "Revenue drivers - segment volume x price (blue = input)")
     SEGS, DH, DU = DRV["segments"], DRV["hist"], DRV.get("units") or {}
-    drv.text("Source: " + DRV.get("source", "") + (f" - field '{DRV['field']}'" if DRV.get("field") else ""))
+    drv.text(f"Revenue lines: {DRV.get('basis_type', 'business segments')}. Source: " + DRV.get("source", "")
+             + (f" - field '{DRV['field']}'" if DRV.get("field") else ""))
     drv.text("Draft: years with consensus (and revenue anchors) are calibrated so the segments sum to the scenario "
              "total; later years run on the drivers. Change any blue cell - revenue follows.")
 
@@ -510,7 +511,15 @@ if DRV:
 
     for k, s in enumerate(SEGS):
         key = f"s{k}"
-        drv.hdr(s + (f"  - {DRV['basis'][s]}" if DRV.get("basis", {}).get(s) else ""))
+        drv.hdr(s + (f"  - {DRV['basis'][s]}" if DRV.get("basis", {}).get(s) else "")
+                + (f"  [history: {DRV['line_sources'][s]}]" if DRV.get("line_sources", {}).get(s) else ""))
+        for kind, lab in (("market", "memo: market growth (volume = (1 + market) x (1 + share) - 1)"),
+                          ("share", "memo: share change")):
+            for sc in ("base", "bull", "bear"):
+                vals = ((DRV.get(kind) or {}).get(sc) or {}).get(s) or []
+                if any(v is not None for v in vals):
+                    drv.line(f"{key}_{kind}_{sc}", f"  {lab} - {sc.title()}", PCT,
+                             fc=(lambda vals: lambda j: vals[fc_idx(j)])(vals))
         for kind, lab in (("v", "Volume growth"), ("p", "Price growth")):
             for sc in ("base", "bull", "bear"):
                 vals = DRV["scen"][sc][s]["volume" if kind == "v" else "price"]

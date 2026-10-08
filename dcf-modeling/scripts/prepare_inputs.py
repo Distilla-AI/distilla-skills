@@ -148,8 +148,13 @@ def add_years(date_str, n):
 def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anchors, idx_of, flags):
     """Segment revenue drivers for the Drivers tab, or None (single growth rate) with the reason flagged.
 
-    SEG = raw.json["segments"]: {"revenue": {seg: {end_date: value}}, "units": {seg: {...}} (optional),
-    "units_unit", "source", "drivers": {seg: {scenario: {"volume": {year: v}, "price": {year: p}}, "basis": text}}}.
+    SEG = raw.json["segments"]: {"revenue": {line: {end_date: value}}, "units": {line: {...}} (optional),
+    "units_unit", "source", "basis_type" (business segments | product / service | market x share | geography | kpi),
+    "line_sources": {line: text}, "hold": [...],
+    "drivers": {line: {scenario: {"volume" | "market" + "share" | "price": {year: v}}, "basis": text}}}.
+    A line need not be a reported segment: a product / service split (new equipment vs services), market x
+    share, a region or a KPI line works the same way when its history is sourced. Where a line has "market"
+    (market growth) and optionally "share" (share change) for a year, volume = (1 + market)(1 + share) - 1.
     """
     if not SEG.get("revenue"):
         return None
@@ -178,7 +183,9 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
                              "revenue in its last year) - moved into other / eliminations.")
     hist = {s: hist[s] for s in names}
     if len(names) < 2:
-        flags.append("SEGMENTS not used: fewer than 2 segments - revenue stays on the single growth rate.")
+        flags.append("SEGMENTS not used: fewer than 2 revenue lines - revenue stays on the single growth rate. A "
+                     "single-segment company can use a product / service split, market x share, geography or KPI "
+                     "lines instead (SKILL.md, Segments).")
         return None
     usable = [i for i in range(len(periods)) if all(hist[s][i] is not None for s in names)]
     if not usable or usable[-1] != len(periods) - 1 or len(usable) < 2:
@@ -215,6 +222,17 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
     hold = [s for s in (SEG.get("hold") or []) if s in hist]
 
     def anchor(s, sc, kind, i):
+        if kind == "volume":
+            v_ = raw_anchor(s, sc, "volume", i)
+            if v_ is None:
+                m_ = raw_anchor(s, sc, "market", i)
+                if m_ is not None:
+                    sh_ = raw_anchor(s, sc, "share", i)
+                    v_ = (1 + m_) * (1 + (sh_ or 0.0)) - 1
+            return v_
+        return raw_anchor(s, sc, kind, i)
+
+    def raw_anchor(s, sc, kind, i):
         d = ((seg_anchor.get(s) or {}).get(sc) or {}).get(kind) or {}
         for y, v in d.items():  # keyed by fiscal-year label ("2029") or end date: matched on the label year
             if fc_periods[i][:4] == str(y)[:4]:
@@ -222,6 +240,10 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
         return None
 
     out = {"segments": names, "hist": hist, "other_hist": other, "units": units,
+           "basis_type": SEG.get("basis_type", "business segments"),
+           "line_sources": {s: (SEG.get("line_sources") or {}).get(s, "") for s in names},
+           "market": {sc: {s: [raw_anchor(s, sc, "market", i) for i in range(N)] for s in names} for sc in scen},
+           "share": {sc: {s: [raw_anchor(s, sc, "share", i) for i in range(N)] for s in names} for sc in scen},
            "units_unit": SEG.get("units_unit", ""), "source": SEG.get("source", "Distilla by_segment_financials"),
            "field": SEG.get("field", ""), "scen": {}, "total_growth": {}, "pinned": {}, "basis_summary": {},
            "basis": {s: (seg_anchor.get(s) or {}).get("basis", "") for s in names}}
@@ -234,11 +256,15 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
         vol = {s: [] for s in names}
         pr = {s: [] for s in names}
         tot_g = []
+        level, L = [], rev[-1]  # the scenario's revenue level each year: pinned years aim at the level, so a year
+        for g_ in target_g:     # left off-consensus (every line anchored) does not carry its gap forward
+            L *= 1 + g_
+            level.append(L)
         for i in range(N):
             p_i = {s: anchor(s, sc, "price", i) for s in names}
             v_a = {s: anchor(s, sc, "volume", i) for s in names}
             if pinned[i]:
-                T = T_prev * (1 + target_g[i])
+                T = level[i]
                 S_target = T / (1 + O / S_prev) if S_prev else T
                 base_v = {s: (v_a[s] if v_a[s] is not None else own[s]) for s in names}
                 p_use = {s: (p_i[s] if p_i[s] is not None else 0.0) for s in names}
@@ -278,7 +304,7 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
                                     + ", ".join(anchored) if anchored else
                                     "calibrated to the scenario total in pinned years; trailing segment growth, "
                                     "faded to terminal growth after (formula, no evidence)")
-    flags.append(f"Revenue built from {len(names)} segments ({', '.join(names)}) on the Drivers tab"
+    flags.append(f"Revenue built from {len(names)} {out['basis_type']} lines ({', '.join(names)}) on the Drivers tab"
                  + (f"; units x price for {', '.join(units)}" if units else "") + ".")
     return out
 

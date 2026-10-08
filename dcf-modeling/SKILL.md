@@ -231,6 +231,15 @@ report (`†`). Keep a finance segment — its revenue is in consolidated revenu
 missing, too few or do not cover the last actual year, the script says so and keeps the single growth
 rate.
 
+**Revenue lines when there is one segment.** The lines need not be reported segments. In this order,
+use the first with at least two years of sourced history: (1) business segments; (2) a product / service
+split (new equipment vs services — the `aftermarket` KU gives Tokyo Electron's Field Solutions; the other
+line is revenue less it, `‡`); (3) market × share for a line whose revenue follows an industry market
+(record `market` growth and `share` change instead of `volume`); (4) geography (`geographical_segments`);
+(5) KPI lines (units, subscribers, stores). Write these lines into `raw.json["segments"]` yourself, each
+year cited in `line_sources`, and set `basis_type`; business-segment rows still come only from
+`scripts/segments.py`. None available → the single growth rate, said in one line.
+
 **Pensions, basis gap, history breaks, share count** (every company).
 - From the latest filing: the net pension and retiree-benefit deficit (`bridge.pension_deficit`,
   pre-tax; 0 when funded).
@@ -305,7 +314,10 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
    title and date — a broker view, never consensus), segment history. Record them in
    `raw.json["segments"]["drivers"]` by segment and scenario (volume and price by year, with a basis);
    in consensus years the other segments' volume is recalibrated so the total still matches consensus.
-   Anchor price for every year guidance or a note gives it (an unanchored price is 0). When brokers state
+   Anchor price for every year guidance or a note gives it (an unanchored price is 0). For a market × share
+   line, the market growth comes from the notes read (cited) and share change from company or broker
+   statements. In a consensus year, leave at least one sizeable line unanchored so the total can match
+   consensus; anchoring every line is a deliberate off-consensus view and shows as a variance. When brokers state
    views by product rather than by segment (DRAM / NAND / HBM bits and prices), say how you mapped them to
    segments. Where brokers disagree on a driver, that spread sets bull and bear.
 Rerun prepare_inputs.py; evidence, anchors and return policy live in raw.json, so nothing is lost.
@@ -314,7 +326,8 @@ Rerun prepare_inputs.py; evidence, anchors and return policy live in raw.json, s
 First build, recalculate and check the draft exactly as in step 7, so the checkpoint can show a
 draft value. Then present, compactly, in chat:
 - The Base case table (growth, EBIT margin, capex %) by forecast year, noting which years are
-  consensus-anchored. With the Drivers tab: the base volume and price growth for each segment, the
+  consensus-anchored. With the Drivers tab: what the lines are (business segments, product / service,
+  market × share, geography, KPI), the base volume and price growth for each line, the
   other / eliminations line, and each driver's basis (guidance / broker view / history / calibrated /
   formula, no evidence).
 - WACC and terminal growth, each input tagged *live* or *default*, and beside them the discount

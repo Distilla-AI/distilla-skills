@@ -134,6 +134,9 @@ Raise only the ones that apply. Lead with the one that moves value most.
    consensus). Name the segment that moves value most and its basis; flag other / eliminations above 10%
    of revenue. Say which segments are held at their own trend (a finance segment), and point out a
    calibrated volume that swings against an anchored year (GM International: +12.9% anchored, then −9.5%).
+   When every line is anchored in a consensus year, the total leaves consensus that year (shown as a
+   variance) and an unanchored line can absorb a catch-up the next year (Tokyo Electron test: Field
+   Solutions +48.5%) — say which it is, or leave a sizeable line unanchored.
 
 ## WACC sourcing order (user choice: web search, then defaults)
 
