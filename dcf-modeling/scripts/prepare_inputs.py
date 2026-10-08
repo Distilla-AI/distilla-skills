@@ -466,6 +466,21 @@ def main():
         take("crp", cdef["crp"], f"{rate_country} country risk premium")
 
     fx = mkt.get("fx_reporting_per_price", 1.0)
+    # Stock splits after the bridge date: Distilla's share counts are pre-split while the price is post-split
+    # (Tokyo Electron 5-for-1, 29 Sep 2026). Record them as found; the script scales the shares once.
+    splits = [s_ for s_ in (mkt.get("splits_after_bridge") or []) if s_.get("ratio") not in (None, 1, 1.0)]
+    if splits:
+        f_ = 1.0
+        for s_ in splits:
+            f_ *= float(s_["ratio"])
+        for k_ in ("diluted_shares", "basic_shares"):
+            if bridge.get(k_):
+                bridge[k_] = bridge[k_] * f_
+        bridge["shares_source"] = ((bridge.get("shares_source") or f"Distilla diluted shares, {bridge.get('as_of')}")
+                                  + f" x {f_:g} for split(s) after the bridge date ("
+                                  + ", ".join(f"{s_['ratio']:g}-for-1 {s_.get('date', '')}" for s_ in splits) + ")")
+        flags.append(f"STOCK SPLIT: share counts scaled x{f_:g} for split(s) after the bridge date - per-share history "
+                     "(EPS, DPS) in the Model tab stays pre-split; check broker targets are on the same basis.")
     mcap = mkt["price"] * fx * bridge["diluted_shares"]
     debt_total = bridge.get("st_debt", 0) + bridge.get("lt_debt", 0) + bridge.get("leases", 0)
     vm = mkt.get("vendor_market_cap_usd")

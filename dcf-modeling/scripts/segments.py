@@ -87,6 +87,8 @@ def main():
     ap.add_argument("--units", action="append")
     ap.add_argument("--rename", action="append", default=[], help="OLD=NEW segment name")
     ap.add_argument("--exclude", action="append", default=[])
+    ap.add_argument("--keep", action="append", default=[],
+                    help="keep only these segments (when one field holds several breakdowns: brand, product, channel)")
     ap.add_argument("--out")
     a = ap.parse_args()
 
@@ -136,6 +138,16 @@ def main():
             print(f"  {f!r}: {len(segs)} segments, years {years}{mark}")
             for s in sorted(segs):
                 print(f"      {'(dropped: total-like) ' if TOTAL_LIKE.search(s) else ''}{s}")
+            if REVENUE_LIKE.search(f):  # several breakdowns in one field double-count
+                for y in years:
+                    parts = [v for (f_, s_, e_), (_, v, _) in best.items() if f_ == f and e_[:4] == y and not TOTAL_LIKE.search(s_)]
+                    # a total from this field, or from any revenue-like field labelled total / overall
+                    tots = [v for (f_, s_, e_), (_, v, _) in best.items() if e_[:4] == y and REVENUE_LIKE.search(f_)
+                            and ((f_ == f and TOTAL_LIKE.search(s_)) or re.search(r"\b(total|overall)\b", f_, re.I))]
+                    if tots and parts and sum(parts) > 1.5 * max(tots):
+                        print(f"      ! {y}: segments sum to {sum(parts):,.0f}, {sum(parts) / max(tots):.1f}x the total "
+                              f"{max(tots):,.0f} - several breakdowns overlap; pick one with --keep")
+                        break
         print("\nRe-run with --revenue \"<field>\" (and --units \"<field>\" where a unit series exists).")
         return
 
@@ -143,11 +155,12 @@ def main():
         out, unit = defaultdict(dict), ""
         for field in field_list:  # first label wins per segment-year
             for (f, seg, end), (_, v, u) in best.items():
-                if f != field or TOTAL_LIKE.search(seg) or seg in a.exclude or end in out[seg]:
+                if f != field or TOTAL_LIKE.search(seg) or seg in a.exclude or (a.keep and seg not in a.keep) \
+                        or end in out.get(seg, {}):
                     continue
                 out[seg][end] = v
                 unit = unit or u
-        return {s: dict(sorted(d.items())) for s, d in sorted(out.items())}, unit
+        return {s: dict(sorted(d.items())) for s, d in sorted(out.items()) if d}, unit
 
     rev, unit = table(a.revenue)
     if not rev:

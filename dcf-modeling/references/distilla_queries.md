@@ -132,6 +132,10 @@ query_entity(entity="stock_price",
   select=["symbol","date","close","sell_side_target_price","currency","market_cap"],
   sort=[{"field":"date","direction":"desc"}], limit=1)
 ```
+**Stock splits.** The same entity carries `split` (ratio on the effective date). Query `stock_price` from the
+bridge balance-sheet date to today, `select=["date","split"]`, and record every ratio other than 1 in
+`market.splits_after_bridge` (e.g. `[{"date":"2026-09-29","ratio":5}]`) with share counts left as Distilla
+delivers them: the script scales them once. The market-cap cross-check catches a missed split.
 
 `market_cap` is in USD for every listing (rule 2.6): it is the cross-check for the rebuilt market cap,
 never an input.
@@ -176,9 +180,12 @@ query_entity(entity="ku_cell",
   select=["id","P.end_date","cell_as_of_date","content"],
   sort=[{"field":"cell_as_of_date","direction":"desc"}], limit=1)
 ```
-Then, if that cell's year ends before the last actual fiscal year, the same query with
+Then, if that cell carries fewer than two years, add the previous annual cells that use the same segment
+names (Anta: FY2023 and FY2024 cells). If its year ends before the last actual fiscal year, the same query with
 `P.duration` IN `["quarter", "half", "nine_months"]` and `P.end_date` inside that year (the year-to-date and
-last-quarter cells). Older annual cells can carry a previous segment structure — leave them out.
+last-quarter cells). Leave out cells with a different segment structure (Micron's 2020 cell: CNBU / MBU /
+SBU / EBU). When one field holds several breakdowns at once (Anta "Revenue": brand, product and channel),
+the listing warns that they overlap: keep one breakdown with `--keep` (repeat it per segment).
 The latest annual cell usually carries three years (Caterpillar FY2025: 2023–25). Save the rows to a file
 and run `python <skill_dir>/scripts/segments.py cells.json` to list the fields and segments, then
 `--revenue "<field>"` (plus `--units "<field>"` for a structured unit series) `--out segments.json`.
@@ -215,7 +222,8 @@ year, add the cell for that year (or the full-year columns of the fourth-quarter
  "annual":    {"<metric>": {"<end_date>": "<value as delivered>"}},   // or the raw row list
  "consensus": {"sales_mean": {"<end_date>": "<value>"}, ...},          // or the raw row list
  "market": {"price":0,"price_date":"","price_currency":"","fx_reporting_per_price":1.0,
-            "fx_source":"","target_price":0,"vendor_market_cap_usd":null /* USD m, as Distilla delivers */,"usd_per_price_currency":1.0},
+            "fx_source":"","target_price":0,"vendor_market_cap_usd":null /* USD m, as Distilla delivers */,"usd_per_price_currency":1.0,
+            "splits_after_bridge":[]},
  "bridge": {"as_of":"YYYY-MM-DD","source":"","cash":0,"lt_investments":0,"st_debt":0,
             "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0,
             "pension_deficit":null,"pension_source":"","basic_shares":null,
