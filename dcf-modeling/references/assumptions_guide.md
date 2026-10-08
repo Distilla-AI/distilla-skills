@@ -118,6 +118,9 @@ Raise only the ones that apply. Lead with the one that moves value most.
    (annual report, or estimated from leverage), its ROE and the justified P/B. Say that WACC rises:
    the industrial business carries little of the group's debt once the finance arm's borrowing is
    taken out. Name any input that fell back to a default (1.0× book, 7× leverage).
+13. **Recurring charges and pensions.** Say how much the adjusted-to-reported gap takes off the
+   consensus margin and where it came from, and the after-tax pension deficit in the bridge; if the
+   CONSENSUS BASIS flag fired and no gap was found, say so.
 
 ## WACC sourcing order (user choice: web search, then defaults)
 

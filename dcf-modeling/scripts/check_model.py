@@ -135,6 +135,11 @@ try:  # present only when a finance arm is valued separately
     fr = series("DCF", "(+) Finance receivables growth (funded by finance-arm debt)")[nh:n]
 except KeyError:
     fr = [0] * len(ufcf)
+try:
+    fp = series("DCF", "(+) Finance-arm leased assets growth (funded by finance-arm debt)")[nh:n]
+    fr = [(a or 0) + (b or 0) for a, b in zip(fr, fp)]
+except KeyError:
+    pass
 for i, u in enumerate(ufcf):
     if abs(u - (nopat[i] + da[i] + cx[i] + dn[i] + (lc[i] or 0) + (fr[i] or 0))) > 1:
         hard.append(f"UFCF does not recompute in {hdr[nh + i]}")

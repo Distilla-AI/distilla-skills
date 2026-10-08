@@ -314,7 +314,10 @@ def main():
 
     take("rf", cdef["rf"], f"{rate_country} 10y govt yield")
     take("erp", MATURE_ERP, "mature-market ERP")
-    take("crp", cdef["crp"], f"{rate_country} country risk premium")
+    if W.get("crp") is None and rate_country == "US":
+        wacc["crp"], wacc["crp_source"] = 0.0, "US cash flows: no country risk premium"
+    else:
+        take("crp", cdef["crp"], f"{rate_country} country risk premium")
 
     fx = mkt.get("fx_reporting_per_price", 1.0)
     mcap = mkt["price"] * fx * bridge["diluted_shares"]
@@ -373,6 +376,18 @@ def main():
             else:
                 fa["rec_share"], fa["rec_share_basis"] = 0.0, "not found - finance receivables growth stays in the cash flow (conservative)"
             fa["profit_pct"] = fa["profit"] / rev[-1] if rev[-1] else 0.0
+            ppe_last = s0("balance_sheet_net_property_plant_and_equipment")[-1]
+            if fa_raw.get("leased_assets") is not None and ppe_last:
+                fa["ppe_share"] = clamp(fa_raw["leased_assets"] / ppe_last, 0.0, 1.0)
+                fa["ppe_share_basis"] = f"assets leased to others {fa_raw['leased_assets']:,.0f} / net PP&E {ppe_last:,.0f} ({bs_src})"
+            else:
+                fa["ppe_share"], fa["ppe_share_basis"] = 0.0, "no leased assets found in PP&E"
+            if fa_raw.get("cash") is not None:
+                fa["cash"] = min(fa_raw["cash"], bridge.get("cash", 0))
+                fa["cash_basis"] = fa_raw.get("cash_source") or bs_src
+            else:
+                fa["cash"], fa["cash_basis"] = 0.0, "not found - bridge cash kept whole (finance-arm cash may count twice)"
+                flags.append("Finance arm: its own cash not found - it may sit in bridge cash AND in its equity value.")
     # Effective tax: median of recent years with a normal (0-50%) rate; tax-benefit years are ignored
     valid_tax = sorted(t for t in hist_ratios["tax_rate"][last3] if t is not None and 0 <= t <= 0.5)
     if valid_tax:
@@ -402,7 +417,13 @@ def main():
         adj = 2 / 3 * med + 1 / 3
         band = THRESHOLDS["beta_sector_band"]
         src = W.get("beta_published_sources", "published")
-        if (1 - band) * b_sector <= adj <= (1 + band) * b_sector:
+        if fa:
+            # A finance arm's debt funds low-risk receivables, so relevering a sector beta at group
+            # leverage overstates it (GM: 2.17). The published beta is the market's own measure: use it.
+            wacc["beta"] = round(adj, 3)
+            wacc["beta_source"] = (f"Published 5Y betas {raws} ({src}); median {med:.2f}, Blume-adjusted {adj:.2f}; "
+                                   "sector check skipped - finance arm valued separately")
+        elif (1 - band) * b_sector <= adj <= (1 + band) * b_sector:
             wacc["beta"] = round(adj, 3)
             wacc["beta_source"] = (f"Published 5Y betas {raws} ({src}); median {med:.2f}, Blume-adjusted {adj:.2f}; "
                                    f"within {band:.0%} of sector beta {b_sector:.2f}")
@@ -494,7 +515,7 @@ def main():
         for i in range(ncons):
             g.append(sp[i] / prev - 1)
             prev = sp[i]
-            m.append(ep[i] / sp[i] if ep[i] is not None else None)
+            m.append(ep[i] / sp[i] - charges_pct if ep[i] is not None else None)
         return g, m
 
     # historical reference points for anchoring and the peak guard (uses long_history if provided)
@@ -502,6 +523,24 @@ def main():
     ref_rev = {**{p: v for p, v in LH.get("income_statement_sales", {}).items()}, **dict(zip(periods, rev))}
     ref_ebit = {**{p: v for p, v in LH.get("income_statement_ebit_operating_income", {}).items()}, **dict(zip(periods, ebit))}
     ref_m = {p: ref_ebit[p] / ref_rev[p] for p in sorted(ref_rev) if ref_rev.get(p) and ref_ebit.get(p) is not None}
+    # Recurring charges: consensus EBIT is often the company's ADJUSTED measure (it leaves out
+    # restructuring and other special charges that recur), while history is reported. The average
+    # gap (adjusted - reported EBIT) as % of revenue is deducted from every consensus-derived margin.
+    rc = raw.get("recurring_charges") or {}
+    charges_pct = 0.0
+    if rc.get("pct_rev") is not None:
+        charges_pct = float(rc["pct_rev"])
+    elif rc.get("by_year"):
+        pcts = []
+        for y, gap in rc["by_year"].items():
+            r_ = next((v for p_, v in ref_rev.items() if p_[:4] == str(y)[:4] and v), None)
+            if r_ and num(gap) is not None:
+                pcts.append(num(gap) / r_)
+        charges_pct = avg(pcts) or 0.0
+    if charges_pct:
+        flags.append(f"RECURRING CHARGES: consensus EBIT is on an adjusted basis; {charges_pct:.1%} of revenue "
+                     f"(average adjusted-to-reported gap; {rc.get('source', 'source not recorded')}) is deducted "
+                     "from every consensus-derived margin. Anchors must be on the reported basis.")
     hist_g = avg(hist_ratios["revenue_growth"][last3]) or 0.03
     hist_m = avg(hist_ratios["ebit_margin"][last3]) or 0.10
     scen = {}
@@ -528,6 +567,12 @@ def main():
         flags.append(f"CYCLICAL PEAK GUARD: last consensus EBIT margin {bm[-1]:.1%} is >1.5x the "
                      f"{hist_span} average ({hist_all_m:.1%}); beyond-consensus margins fade to a mid-cycle "
                      f"{ss_base:.1%}. Confirm with the user - this is the biggest value driver.")
+    if not rc and ncons and C.get("ebit_mean", {}).get(cons_periods[0]) and hist_ratios["ebit_margin"][-1] is not None:
+        m1 = C["ebit_mean"][cons_periods[0]] / C["sales_mean"][cons_periods[0]]
+        if m1 > hist_ratios["ebit_margin"][-1] + 0.03:
+            flags.append(f"CONSENSUS BASIS: FY1 consensus EBIT margin {m1:.1%} is well above the last reported "
+                         f"{hist_ratios['ebit_margin'][-1]:.1%}. If consensus is the company's adjusted EBIT, record "
+                         "the adjusted-to-reported gap in raw.json['recurring_charges'] and re-run.")
     scen["base"] = {"revenue_growth": fade(bg, N, g_term), "ebit_margin": fade(bm, N, ss_base)}
     for name, sk, ek, dg, dm in (("bull", "sales_high", "ebit_high", 0.02, 0.01),
                                  ("bear", "sales_low", "ebit_low", -0.02, -0.01)):
@@ -738,9 +783,9 @@ def main():
         ebitda1 = rev[-1] * (1 + scen["base"]["revenue_growth"][0]) * (scen["base"]["ebit_margin"][0] + da_pct)
     ev_now = (mcap + debt_total - (1 - subtract_leases) * bridge.get("leases", 0) - bridge.get("cash", 0)
               - bridge.get("lt_investments", 0) * raw.get("include_lt_investments", 1)
-              + bridge.get("minority_interest", 0))
+              + bridge.get("minority_interest", 0) + max(0.0, bridge.get("pension_deficit") or 0) * (1 - tax_eff))
     if fa:  # industrial EV: finance debt, finance receivables and the finance arm (at book) come out
-        ev_now += -fa["debt"] + fa["lt_rec"] * raw.get("include_lt_investments", 1) - fa["equity"]
+        ev_now += -fa["debt"] + fa["lt_rec"] * raw.get("include_lt_investments", 1) - fa["equity"] + fa["cash"]
         ebitda1 -= fa["profit"] * (1 + scen["base"]["revenue_growth"][0])
     exit_mult = round(ev_now / ebitda1, 1) if ebitda1 and ebitda1 > 0 else 10.0
 
@@ -775,6 +820,7 @@ def main():
         "basis": basis,
         "reference_points": reference_points,
         "finance_arm": fa or {},
+        "recurring_charges": {"pct_rev": round(charges_pct, 4), "source": rc.get("source", "")} if charges_pct else {},
         "multiple_history": raw.get("multiple_history") or {},
         "evidence": [],  # filled by the assistant in the evidence step (see references/evidence_guide.md)
         "flags": flags,
@@ -796,6 +842,7 @@ def main():
         if k == "tax_rate":
             model["wacc"]["tax_rate"] = v
     json.dump(model, open(out_path, "w"), indent=1, default=str)
+    tax_eff = model["wacc"]["tax_rate"]  # the printout shows the values after user overrides
 
     # ---------- summary for the confirmation checkpoint
     cur = co.get("reporting_currency", "")
@@ -828,6 +875,11 @@ def main():
     if mh.get("avg") is not None:
         print(f"Own-history {mh.get('type')} since {mh.get('from')}: avg {float(mh['avg']):.1f}x, "
               f"low {float(mh['min']):.1f}x, high {float(mh['max']):.1f}x (n={mh.get('n')})")
+    if charges_pct:
+        print(f"Recurring charges deducted from consensus margins: {charges_pct:.1%} of revenue ({rc.get('source', '')})")
+    pdf = bridge.get("pension_deficit")
+    print(f"Pension & retiree-benefit deficit in the bridge: " + (f"{pdf:,.0f} pre-tax, {max(0.0, pdf) * (1 - tax_eff):,.0f} "
+          f"after tax ({bridge.get('pension_source', 'source not recorded')})" if pdf is not None else "not sourced (0)"))
     if mkt.get("mcap_check"):
         print("Market cap check: " + mkt["mcap_check"])
     if fa:
@@ -835,6 +887,8 @@ def main():
         print(f"Finance arm valued separately - {fa['name']}: assets {fa['assets']:,.0f} ({fa['asset_share']:.0%} of total), "
               f"pre-tax profit {fa['profit']:,.0f} ({fa['profit_pct']:.1%} of revenue)")
         print(f"  equity {fa['equity']:,.0f} [{fa['equity_basis']}]; debt {fa['debt']:,.0f} [{fa['debt_basis']}]")
+        print(f"  own cash {fa['cash']:,.0f} [{fa['cash_basis']}]; leased assets share of PP&E {fa['ppe_share']:.0%} "
+              f"[{fa['ppe_share_basis']}]")
         print(f"  LT finance receivables {fa['lt_rec']:,.0f} [{fa['lt_rec_basis']}]; current share of receivables "
               f"{fa['rec_share']:.0%} [{fa['rec_share_basis']}]")
         if roe is not None:

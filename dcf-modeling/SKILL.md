@@ -151,7 +151,7 @@ Never call any other connector, even when one is connected.
 | Diluted shares (bridge) | Latest-quarter `financial_data_point` `income_statement_diluted_shares_outstanding`, on the price's share basis (2.1 #2; rule 2.3) | `ku_cell` `shares_outstanding` (cross-check only); annual `financials_review` NI ÷ EPS (`‡`) | Official filings (diluted weighted shares) → company IR |
 | Buybacks, dividends, M&A | Flows: `financial_data_point` `cash_flow_repurchase_of_common_and_preferred_stock`, `cash_flow_cash_dividends_paid`, `cash_flow_net_assets_from_acquisitions`. Programs and history: `ku_cell` `share_buybacks`, `share_buyback_program`, `dividend_history`, `dividend_payout_ratios`, `mergers_and_acquisitions`, `capital_deployment` (sparse) | `standard_event` (`Buyback program change`, `Dividend Announcement`, `Dividend policy change`, `Merger or Acquisition`, `Divestment`); `stock_price.dividend` | Official filings — SEC EDGAR (US), HKEXnews (HK), EDINET / TDnet (JP), DART (KR), CNINFO (CN) (cash flow statement, M&A notes) → company IR |
 | Risk-free rate, equity risk premium | Not in Distilla MCP today | None | Risk-free: U.S. Treasury daily yield curve or the currency's central bank / finance ministry. ERP: Damodaran implied ERP (NYU Stern). State source + date. |
-| Beta | Not in Distilla MCP today (no index series) | None | Published 5Y monthly betas, every one found in one search: Yahoo Finance Statistics "Beta (5Y Monthly)", StockAnalysis, Investing.com, GuruFocus — each marked `†` with source and as-of date; `prepare_inputs.py` takes the median, Blume-adjusts it and checks it against the sector beta; none found → relevered sector beta, flagged. Never a regression on Distilla prices; ignore 1-year betas and betas against a foreign benchmark |
+| Beta | Not in Distilla MCP today (no index series) | None | Published 5Y monthly betas, every one found in one search: Yahoo Finance Statistics "Beta (5Y Monthly)", StockAnalysis, Investing.com, GuruFocus — each marked `†` with source and as-of date; a value read on a fetched page first, one seen only in a search result labelled "search result"; `prepare_inputs.py` takes the median, Blume-adjusts it and checks it against the sector beta; none found → relevered sector beta, flagged. Never a regression on Distilla prices; ignore 1-year betas and betas against a foreign benchmark |
 | Broker research | `search_public_library` (`doc_types = ["Research"]`, `tickers`, `date_range`, `brokers`; `mode = "list"` for a catalog); `get_library_document` for summary + tags (Research never returns full text) | `standard_event` (`Sell-side Rating Action`, `Sell-side Target Price Action`, `Sell-side coverage initiation`) — discovery only: brokers to list again, never a rating or TP | **None** — broker reports are not reliably on the open web; no broker after both 3a lists is `no coverage found`, not a gap. |
 | Finance arm (captive finance: revenue, profit, assets) | `ku_cell` `by_segment_financials` (the finance segment: e.g. Financial Products, Financial Services, GM Financial, Ford Credit); `cash_and_debt` comment for the finance-arm debt or leverage | `ku_cell` `by_segment_performances` | None — Distilla covers these lines |
 | Finance arm balance sheet (finance receivables current / long-term, debt, equity) | Not in Distilla MCP today as numbers (segment KUs give assets only; `cash_and_debt` gives text) | `cash_and_debt` leverage text → equity = assets ÷ (1 + leverage), debt = assets − equity, flagged estimates | Official filings — the latest annual report's supplemental consolidating data or finance-segment balance sheet: SEC EDGAR (US), HKEXnews (HK), EDINET / TDnet (JP), DART (KR), CNINFO (CN) → the finance arm's own filed report; mark `†` with the as-of date |
@@ -162,8 +162,10 @@ Never call any other connector, even when one is connected.
 - **Beta** per the Beta row (median of published 5Y betas, Blume-adjusted, sector-checked), never one source picked by hand.
 - **Banks, insurers, lenders:** no build — "When not to build a DCF" names what fits instead.
 - **Bridge balances:** cash, long-term investments, debt, leases and minority interest at the latest reported quarter in the reporting currency; shares per the Diluted shares (bridge) row; market cap = price × FX × diluted shares (rule 2.3 rebuild), cross-checked against `stock_price.market_cap` (USD, rule 2.6) — a gap over 10% is flagged, and the vendor value is never the input.
-- **Finance arm** (a finance segment whose assets are ≥ 10% of total assets): the DCF values the industrial business only — the finance segment's pre-tax profit comes out of EBIT and its receivables growth out of the cash flow, its debt and long-term finance receivables out of the bridge — and the finance arm is added back at book equity × justified P/B = (ROE − g) ÷ (cost of equity − g), bounded 0.5–2.5×. A missing input falls back to 1.0× book, labelled a default in the workbook and the summary.
-- **Terminal multiple cross-check (3e):** the implied terminal EV/EBITDA against the company's own 3-year `valuation_multiple` `NTM_Ev_Ebitda_Med_W` average, low and high (`aggregate_entity`, latest value spot-checked per rule 2.4); none returned → `--` with the call named.
+- **Finance arm** (a finance segment whose assets are ≥ 10% of total assets): the DCF values the industrial business only — the finance segment's pre-tax profit comes out of EBIT and its receivables growth out of the cash flow, its debt and long-term finance receivables out of the bridge — and the finance arm is added back at book equity × justified P/B = (ROE − g) ÷ (cost of equity − g), bounded 0.5–2.5×. Its own cash comes out of bridge cash and its leased assets' net investment out of the cash flow; beta is the published Blume-adjusted beta, without the sector check (finance debt funds low-risk receivables). A missing input falls back to 1.0× book, labelled a default in the workbook and the summary.
+- **Pensions and recurring charges:** the net pension and retiree-benefit deficit is deducted in the bridge after tax (a surplus is not added); recurring charges (the company's adjusted-minus-reported EBIT, averaged) come off every consensus-derived margin, so the forecast is on the reported basis. Neither is in Distilla: annual report, `†`.
+- **Pre-flight KU check (rule 2.1 #1)** covers `by_segment_financials`, `cash_and_debt` and the evidence units named in `references/evidence_guide.md`.
+- **Terminal multiple cross-check (3e):** the implied terminal EV/EBITDA against the company's own 3-year `valuation_multiple` `NTM_Ev_Ebitda_Med_W` average, low and high (`aggregate_entity`, latest value spot-checked per rule 2.4); none returned → `--` with the call named. State the vendor EV basis the spot-check finds (with or without a finance arm's debt).
 
 **Provenance:** markers, the `†` footnote, one web source per field and no NTM-vs-LTM comparison follow rule 2.7. The workbook's DCF tab carries every source string; in the chat summary, web values (risk-free rate, beta, ERP, finance-arm balance sheet) take `†` with source and date, derived values `‡`.
 
@@ -204,9 +206,22 @@ standard (it decides how leases are treated).
 **Finance arm.** Read `by_segment_financials` (section 5b of distilla_queries.md). When a finance
 segment's assets are 10% or more of total assets (Caterpillar Financial Products, Deere Financial
 Services, GM Financial, Ford Credit), fill `raw.json["finance_arm"]`: revenue, pre-tax profit and
-assets from Distilla; finance receivables, debt and equity from the latest annual report's
-supplemental consolidating data (official filings, `†`), else the Distilla leverage text, else
-leave them `null`. The script values the finance arm separately; see the field notes.
+assets from Distilla; from the latest annual report (official filings, `†`): finance receivables
+(current and long-term, as shown on the consolidated balance sheet), the finance arm's debt and
+equity (its own column after eliminations), its own cash, and assets leased to customers (inside
+PP&E). Else the Distilla leverage text; else leave them `null`. The script values the finance arm
+separately; see the field notes.
+
+**Pensions and recurring charges** (every company). From the annual report: the net pension and
+retiree-benefit deficit (`bridge.pension_deficit`, pre-tax; 0 when funded). If the company reports
+an adjusted operating profit that consensus follows, the adjusted-minus-reported EBIT gap for up to
+the last 3 years (`recurring_charges.by_year`); the script deducts the average from every
+consensus-derived margin. The script flags a consensus margin far above the last reported one.
+
+**Fetching filings and pages:** only with the host's page-fetch tool. Never download pages with
+code (`curl`, Python requests) and never send the user's name, email or other details in a request.
+When an annual report is too long to fetch whole, fetch EDGAR's financial-report pages
+(`R2.htm`, `R4.htm` … in the filing folder) or the XBRL company-facts page instead.
 
 ### 2. Source WACC inputs live
 Use the host's full web search here, not a fast or lite variant: in testing a fast search tool
@@ -239,8 +254,8 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
 `references/evidence_guide.md`:
 1. **Gather evidence before deciding**: one `company_drivers` query; the rule 3a broker list
    (`search_public_library` `mode="list"`, `date_range="90d"`, `doc_types=["Research"]`, the
-   ticker), reading the latest note of up to 3 brokers with `get_library_document` (rating, target
-   price, date); then 2–3 *neutral* `search_public_library` `mode="synthesize"` questions ("when
+   ticker), reading every broker found with `get_library_document` (rating, target price, date —
+   all brokers, never a sample); then 2–3 *neutral* `search_public_library` `mode="synthesize"` questions ("when
    does the shortage end?", not "confirm the margin"). Add the own-history multiple for the
    terminal cross-check: `aggregate_entity` on `valuation_multiple`, type `NTM_Ev_Ebitda_Med_W`,
    last 3 years, AVG / MIN / MAX, into `raw.json["multiple_history"]`.

@@ -151,8 +151,12 @@ Toyota Financial Services). If its assets are 10% or more of total assets, fill 
   labels with commas shift the columns ("Selling, general and administrative" splits) — check each
   value against the cell's period and unit before using it.
 - **From the annual report** (official filings, `†` with the as-of date): the supplemental
-  consolidating data or the finance segment's balance sheet gives finance receivables (current and
-  long-term), finance-arm debt and equity. One search for the filing, then fetch it.
+  consolidating data or the finance segment's balance sheet. Finance receivables, current and
+  long-term: the consolidated balance sheet lines. Debt, equity and cash: the finance arm's own column
+  after intercompany eliminations. Assets leased to customers (equipment on operating leases, leased
+  vehicles): the PP&E line or note. One search for the filing, then fetch it with the host's fetch
+  tool; if it is too long, fetch EDGAR's `R2.htm` / `R4.htm` pages or the XBRL company-facts page.
+  Never download with code or send user details.
 - **Fallback:** `cash_and_debt` comment text may give the finance arm's leverage (Cat Financial
   covenant leverage 7.96x, Jun 2026) — record it as `leverage`; the script then estimates equity and
   debt and flags them. Anything not found stays `null`.
@@ -186,15 +190,18 @@ Toyota Financial Services). If its assets are 10% or more of total assets, fill 
  "market": {"price":0,"price_date":"","price_currency":"","fx_reporting_per_price":1.0,
             "fx_source":"","target_price":0,"vendor_market_cap_usd":null,"usd_per_price_currency":1.0},
  "bridge": {"as_of":"YYYY-MM-DD","source":"","cash":0,"lt_investments":0,"st_debt":0,
-            "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0},
+            "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0,
+            "pension_deficit":null,"pension_source":""},
  "include_lt_investments": 1,
  "wacc": {"rf":0.0,"rf_source":"","beta":null,"beta_source":"","erp":null,"erp_source":"",
           "crp":null,"crp_source":"","kd_pretax":null,"terminal_growth":null,
           "beta_published":[1.09,0.92],"beta_published_sources":"Yahoo 5Y monthly 1.09; GuruFocus 0.92"},
  "long_history": {"income_statement_sales": {...}, "income_statement_ebit_operating_income": {...}},
+ "recurring_charges": {"by_year": {"2025": 0, "2024": 0, "2023": 0}, "source": ""},   // adjusted - reported EBIT; omit when none
  "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0},
  "finance_arm": {"name":"","period":"YYYY-MM-DD","segment_source":"","revenue":0,"profit_pretax":0,"assets":0,
-                 "st_receivables":null,"lt_receivables":null,"debt":null,"equity":null,"bs_source":"",
+                 "st_receivables":null,"lt_receivables":null,"debt":null,"equity":null,"cash":null,
+                 "leased_assets":null,"bs_source":"",
                  "leverage":null,"leverage_source":"","pb_override":null},   // omit when there is no finance arm
  "anchors": {...}, "evidence": [...], "returns": {...}   // from the evidence step; see evidence_guide.md
 }
