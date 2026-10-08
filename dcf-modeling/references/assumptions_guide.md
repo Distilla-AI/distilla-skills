@@ -11,7 +11,7 @@ plainly, and let the user decide.
 | Revenue growth | consensus mean path (Base), high (Bull), low (Bear) | linear fade to terminal growth | 3-yr historical average, clipped to −10%..+25% |
 | Segment drivers (Drivers tab) | each segment's trailing growth (or its anchor) plus one common volume shift, so the segments sum to the scenario total | volume fades to terminal growth, price to zero, unless anchored | — (no Drivers tab without segment data) |
 | EBIT margin | consensus EBIT / consensus sales | hold last consensus margin, or fade to mid-cycle (peak guard) | 3-yr historical average |
-| Segment margins (Drivers tab, with segment profit) | last actual margin (or its anchor) plus one common shift, so EBIT = consensus EBIT; corporate / unallocated held as % of revenue | the line's anchor, else in proportion to the company-level path; held lines flat; company margin = mix | — |
+| Segment margins (Drivers tab, with segment profit) | last actual margin (or its anchor) plus one common shift, so EBIT = consensus EBIT; corporate / unallocated held at its median % of revenue (up to 3 years) | the line's anchor, else in proportion to the company-level path; held lines flat; company margin = mix | — |
 | Opex % revenue (SG&A, R&D, other) | (consensus gross profit − EBIT) / sales | held at last consensus year | last actual year |
 | Gross margin | not an input: EBIT margin + opex %, so it follows the scenario and opex can never go negative | | |
 | D&A | consensus EBITDA − EBIT, as % of sales | depreciation rate × beginning net PP&E (median of recent years) | depreciation rate |
@@ -142,7 +142,9 @@ Raise only the ones that apply. Lead with the one that moves value most.
    which line margins carry evidence. When the mix-built company margin parts from the company-level
    path (mix toward a higher-margin segment), say which segment drives it and whether the peak guard
    still holds for the total. A large corporate / unallocated line (over 5% of revenue) usually holds
-   restructuring or a basis gap — say whether holding it at that share is right.
+   restructuring or a basis gap — say whether holding it at that share is right. When the history holds
+   a cost that has stopped (GM: Cruise losses in 2023–24), set `segments.corporate_pct` with
+   `corporate_basis` and cite it.
 
 ## WACC sourcing order (user choice: web search, then defaults)
 

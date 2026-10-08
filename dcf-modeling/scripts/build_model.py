@@ -600,7 +600,7 @@ if DRV:
         drv.line("corp_pct", "Corporate / unallocated % of revenue", PCT,
                  hist=lambda j: f"=IFERROR({ref(DRIVERS, 'corp', j)}/{ref(DRIVERS, 'total', j)},0)" if _pc[j] else None,
                  fc=(lambda vals: lambda j: vals[fc_idx(j)])(DRV["corp_pct"]), key_fill=True,
-                 note="Held at the last actual year's share (all scenarios).")
+                 note="Held at its median share of revenue over up to the last 3 years (all scenarios).")
         drv.line("corp", "Corporate / unallocated (Distilla EBIT - segment profit)", NUM,
                  hist=lambda j: (f"={raw('income_statement_ebit_operating_income', j)}-{ref(DRIVERS, 'op_sum', j)}"
                                  if _pc[j] else None),
@@ -1222,7 +1222,7 @@ chk = SB(CHK, "Model integrity checks")
 chk.hdr("Every year")
 chk.line("bs", "Balance sheet balances (assets - L&E)", NUM, hist=lambda j: f"={ref(BS, 'check', j)}",
          fc=lambda j: f"={ref(BS, 'check', j)}")
-chk.line("cash_neg", "Forecast cash below zero? (1 = yes)", '0', fc=lambda j: f"=IF({ref(BS, 'cash', j)}<0,1,0)")
+chk.line("cash_neg", "Forecast cash below zero? (1 = yes)", '0', fc=lambda j: f"=IF(ROUND({ref(BS, 'cash', j)},0)<0,1,0)")
 chk.line("cf_tie", "Cash flow ending cash - balance sheet cash", NUM, fc=lambda j: f"=ROUND({ref(CF, 'cash_end', j)}-{ref(BS, 'cash', j)},3)")
 chk.hdr("History ties to Distilla (model sum - Distilla reported; all should be 0)")
 chk.line("t_cfo", "Cash from operations", NUM, hist=lambda j: f"=ROUND({ref(CF, 'cfo', j)}-{raw('cash_flow_net_operating_cash_flow', j)},3)")

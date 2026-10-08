@@ -223,8 +223,8 @@ years; distilla_queries.md section 5c), save the rows, run `scripts/segments.py`
 fields, then again with `--revenue "<field>"` (and `--units "<field>"` where Distilla reports a unit
 series, e.g. wholesale vehicles, and `--profit "<field>"` where the cell has segment operating profit) and
 put the output in `raw.json["segments"]`. With profit for every line in the last actual year, EBIT is built
-from segment margins plus a corporate / unallocated line (Distilla EBIT less segment profit, held as a % of
-revenue); otherwise EBIT stays on the company-level margin and the script says why. When the latest annual
+from segment margins plus a corporate / unallocated line (Distilla EBIT less segment profit, held at its median % of
+revenue over up to three years); otherwise EBIT stays on the company-level margin and the script says why. When the latest annual
 cell predates the last actual year, add the current year's quarterly / half-year cells: the script joins
 a year-to-date period with the quarter that completes it. Give `--revenue` twice for a label that changed
 between filings, `--rename` for segment names that differ between cells, `--exclude` for a wound-down

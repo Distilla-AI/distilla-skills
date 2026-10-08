@@ -152,7 +152,8 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
     "units_unit", "source", "basis_type" (business segments | product / service | market x share | geography | kpi),
     "line_sources": {line: text}, "hold": [...],
     "drivers": {line: {scenario: {"volume" | "market" + "share" | "price" | "margin": {year: v}}, "basis": text}},
-    "profit": {line: {end_date: value}} (optional: segment operating profit -> EBIT from segment margins)}.
+    "profit": {line: {end_date: value}} (optional: segment operating profit -> EBIT from segment margins),
+    "corporate_pct": x and "corporate_basis": text (optional: corporate / unallocated % of revenue)}.
     A line need not be a reported segment: a product / service split (new equipment vs services), market x
     share, a region or a KPI line works the same way when its history is sourced. Where a line has "market"
     (market growth) and optionally "share" (share change) for a year, volume = (1 + market)(1 + share) - 1.
@@ -242,7 +243,8 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
 
     # Segment margins (option A): when every line has profit history for the last actual year, EBIT is built
     # from segment margins plus a corporate / unallocated line (Distilla EBIT - segment profit: corporate costs,
-    # restructuring, the basis gap), held as a % of revenue.
+    # restructuring, the basis gap), held at its median share of revenue over up to the last 3 years so a
+    # one-off charge in the last year (GM 2025 EV charges) is not carried into every forecast year.
     phist = {s: match((SEG.get("profit") or {}).get(s, {})) for s in names}
     margins_on = bool(SEG.get("profit")) and ebit is not None and all(phist[s][-1] is not None for s in names) \
         and all(hist[s][-1] for s in names)
@@ -253,10 +255,21 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
     if margins_on:
         corp_hist = [(ebit[i] - sum(phist[s][i] for s in names)) if all(phist[s][i] is not None for s in names)
                      and ebit[i] is not None else None for i in range(len(periods))]
-        corp_pct = corp_hist[-1] / rev[-1] if rev[-1] else 0.0
+        shares = [corp_hist[i] / rev[i] for i in range(len(periods))[-3:] if corp_hist[i] is not None and rev[i]]
+        corp_pct = sorted(shares)[len(shares) // 2] if len(shares) % 2 else sum(sorted(shares)[len(shares) // 2 - 1:
+                                                                                  len(shares) // 2 + 1]) / 2
+        if SEG.get("corporate_pct") is not None:  # a sourced view (a wound-down unit's losses gone, a cost plan)
+            flags.append(f"SEGMENT MARGINS: corporate / unallocated set to {float(SEG['corporate_pct']):+.1%} of revenue "
+                         f"(raw.json segments.corporate_pct; history median {corp_pct:+.1%}) - "
+                         + str(SEG.get("corporate_basis") or "give the basis") + ".")
+            corp_pct = float(SEG["corporate_pct"])
+        elif abs(corp_hist[-1] / rev[-1] - corp_pct) > 0.01:
+            flags.append(f"SEGMENT MARGINS: corporate / unallocated was {corp_hist[-1] / rev[-1]:+.1%} of revenue in "
+                         f"{periods[-1][:4]} against a {len(shares)}-year median of {corp_pct:+.1%} - the median is held; "
+                         "say what the last year's gap was (one-off charges?).")
         if abs(corp_pct) > 0.05:
             flags.append(f"SEGMENT MARGINS: corporate / unallocated is {corp_pct:+.1%} of revenue (Distilla EBIT less "
-                         "segment profit: corporate costs, restructuring, basis gap); held at that share.")
+                         "segment profit: corporate costs, restructuring, basis gap; median of up to 3 years); held at that share.")
     out = {"segments": names, "hist": hist, "other_hist": other, "units": units,
            "margins_on": margins_on, "profit_hist": phist, "corp_hist": corp_hist,
            "corp_pct": [round(corp_pct, 6)] * N if margins_on else None, "margin": {}, "company_margin": {},
@@ -1214,7 +1227,7 @@ def main():
         if drivers.get("margins_on"):
             for s_ in drivers["segments"]:
                 row(f"  {s_[:20]} margin", drivers["margin"]["base"][s_])
-            print(f"  corporate / unallocated {drivers['corp_pct'][0]:+.1%} of revenue (held)")
+            print(f"  corporate / unallocated {drivers['corp_pct'][0]:+.1%} of revenue (held; see flags for its basis)")
         print(f"  other / eliminations last actual {drivers['other_hist'][-1]:,.0f} "
               f"({drivers['other_hist'][-1] / rev[-1]:+.1%} of revenue); pinned years: "
               f"{sum(drivers['pinned']['base'])} of {N}")

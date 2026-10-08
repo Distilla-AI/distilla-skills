@@ -36,7 +36,9 @@ from collections import defaultdict
 TOTAL_LIKE = re.compile(r"\b(total|consolidated|reportable segments|elimination|reconcil|corporate|intersegment|"
                         r"inter-segment|adjustment)\b", re.I)
 REVENUE_LIKE = re.compile(r"^(?!.*\bcost of\b)(?!.*/cost\b).*(sales|revenue)", re.I)
-PROFIT_LIKE = re.compile(r"(segment (profit|result)|operating (profit|income)|\bebita?\b|profit \(loss\))", re.I)
+PROFIT_LIKE = re.compile(r"^(?!.*non-?operating)(?!.*\b(gross|net income|tax|interest (income|expense))\b).*"
+                         r"(segment (profit|result)|operating (profit|income)|profit from operations|\bebita?\b|"
+                         r"earnings.*before interest|profit \(loss\))", re.I)
 
 
 def num(v):

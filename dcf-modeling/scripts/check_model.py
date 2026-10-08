@@ -121,7 +121,7 @@ if cN > th.get("cash_build_multiple", 3.0) * c0 and cN > 0.5:
 # 3. cash never negative
 cash = series("Model", "Cash & ST investments")[:n]
 for h, c in zip(hdr[nh:], cash[nh:]):
-    if c < 0:
+    if c < -0.5:  # buybacks capped at available cash leave exactly 0 (float noise -0)
         warn.append(f"Forecast cash negative in {h} ({c:,.0f}) - reduce buybacks/dividends or add debt issuance")
 
 # 4. DCF arithmetic
