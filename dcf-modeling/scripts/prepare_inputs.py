@@ -557,6 +557,20 @@ def main():
     ref_rev = {**{p: v for p, v in LH.get("income_statement_sales", {}).items()}, **dict(zip(periods, rev))}
     ref_ebit = {**{p: v for p, v in LH.get("income_statement_ebit_operating_income", {}).items()}, **dict(zip(periods, ebit))}
     ref_m = {p: ref_ebit[p] / ref_rev[p] for p in sorted(ref_rev) if ref_rev.get(p) and ref_ebit.get(p) is not None}
+    # G1: continuing-operations history (after a divestiture) replaces the reference points and peak-guard
+    # averages and is the basis the basis gap is measured against (consensus covers the continuing
+    # business); the Model tab still shows Distilla as delivered.
+    _ch = {k: v for k, v in (raw.get("continuing_history") or {}).items() if isinstance(v, dict)}
+    CH = pivot(_ch, "M.name")  # the 'source' text sits beside the series, not in them
+    if CH:
+        for q, v in CH.get("income_statement_sales", {}).items():
+            ref_rev[q] = v
+        for q, v in CH.get("income_statement_ebit_operating_income", {}).items():
+            ref_ebit[q] = v
+        ref_m = {q: ref_ebit[q] / ref_rev[q] for q in sorted(ref_rev) if ref_rev.get(q) and ref_ebit.get(q) is not None}
+        flags.append("Continuing-operations history used for reference points and the peak guard "
+                     f"({', '.join(sorted(q[:4] for q in CH.get('income_statement_sales', {})))}; "
+                     f"{(raw.get('continuing_history') or {}).get('source', 'source not recorded')}).")
     # Recurring charges: consensus EBIT is often the company's ADJUSTED measure (it leaves out
     # restructuring and other special charges that recur). The gap is measured against Distilla's own
     # EBIT for the same year - the basis the model's history uses, which can already be close to the
@@ -585,18 +599,6 @@ def main():
                      f"against Distilla's EBIT (median; {rc.get('source', 'source not recorded')}); that gap comes off every "
                      "consensus-derived margin so the forecast is on Distilla's basis. Anchors must be on that basis. Say what "
                      "the gap is (recurring charges, other income) - it may carry value of its own.")
-    # G1: continuing-operations history (after a divestiture) replaces the reference points and peak-guard
-    # averages; the Model tab still shows Distilla as delivered.
-    CH = pivot(raw.get("continuing_history") or {}, "M.name")
-    if CH:
-        for q, v in CH.get("income_statement_sales", {}).items():
-            ref_rev[q] = v
-        for q, v in CH.get("income_statement_ebit_operating_income", {}).items():
-            ref_ebit[q] = v
-        ref_m = {q: ref_ebit[q] / ref_rev[q] for q in sorted(ref_rev) if ref_rev.get(q) and ref_ebit.get(q) is not None}
-        flags.append("Continuing-operations history used for reference points and the peak guard "
-                     f"({', '.join(sorted(q[:4] for q in CH.get('income_statement_sales', {})))}; "
-                     f"{(raw.get('continuing_history') or {}).get('source', 'source not recorded')}).")
     hist_g = avg(hist_ratios["revenue_growth"][last3]) or 0.03
     hist_m = avg(hist_ratios["ebit_margin"][last3]) or 0.10
     scen = {}
