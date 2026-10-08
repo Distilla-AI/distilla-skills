@@ -196,22 +196,35 @@ def main():
                       "line takes the difference; check the segment list if no headquarters line explains it")
     if a.hold:
         res["hold"] = [s for s in a.hold if s in rev]
-    # year-to-date growth: the latest interim span after the last full year against the same span a year earlier
+    # Year-to-date growth: the latest interim span after the last full year that has the same span a year
+    # earlier, for every line on one span. Spans are tried latest first; a latest cell with no prior-year
+    # columns falls back to an earlier span that has them (Caterpillar H1 2026 -> Q1 2026 with restated
+    # comparatives). Never pair cells across a segment restructure: give only cells on one structure.
     last_full = max(e for d in rev.values() for e in d)
-    ytd = {}
-    for s in rev:
-        spans = [(sp, v) for (f_, s_, sp), (_, v, _) in part.items() if f_ in a.revenue and s_ == s
-                 and sp[1].isoformat() > last_full]
-        if not spans:
-            continue
-        (a1, b1), v1 = max(spans, key=lambda x: (x[0][1], (x[0][1] - x[0][0]).days))
-        prior = [v for (f_, s_, (a2, b2)), (_, v, _) in part.items() if f_ in a.revenue and s_ == s
-                 and abs((a1 - a2).days - 365) <= 20 and abs((b1 - b2).days - 365) <= 20 and v]
-        if prior:
-            ytd[s] = {"growth": round(v1 / prior[0] - 1, 6), "end": b1.isoformat(),
-                      "period": f"{a1.isoformat()} to {b1.isoformat()} vs a year earlier"}
+
+    def prior_of(s, a1, b1):
+        pv = [v for (f_, s_, (a2, b2)), (_, v, _) in part.items() if f_ in a.revenue and s_ == s
+              and abs((a1 - a2).days - 365) <= 20 and abs((b1 - b2).days - 365) <= 20 and v]
+        return pv[0] if pv else None
+    cands = sorted({sp for (f_, s_, sp) in part if f_ in a.revenue and s_ in rev and sp[1].isoformat() > last_full},
+                   key=lambda sp: (sp[1], (sp[1] - sp[0]).days), reverse=True)
+    ytd, skipped = {}, []
+    for a1, b1 in cands:
+        got = {}
+        for s in rev:
+            v1 = next((v for (f_, s_, sp), (_, v, _) in part.items() if f_ in a.revenue and s_ == s and sp == (a1, b1)), None)
+            pv = prior_of(s, a1, b1) if v1 is not None else None
+            if pv:
+                got[s] = {"growth": round(v1 / pv - 1, 6), "end": b1.isoformat(),
+                          "period": f"{a1.isoformat()} to {b1.isoformat()} vs a year earlier"}
+        if len(got) == len(rev):
+            ytd = got
+            break
+        skipped.append(f"{a1.isoformat()} to {b1.isoformat()} ({len(got)} of {len(rev)} lines have a prior-year value)")
     if ytd:
         res["ytd_growth"] = ytd
+    if skipped:
+        print("  year-to-date: skipped " + "; ".join(skipped) + (" - used the next span" if ytd else " - none used"))
     years = sorted({e for d in rev.values() for e in d})
     print(f"Segments ({len(rev)}): {', '.join(rev)}")
     print(f"Years: {', '.join(y[:4] for y in years)}   unit: {unit}")

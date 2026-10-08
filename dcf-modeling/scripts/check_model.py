@@ -3,7 +3,10 @@
 check_model.py - verify a recalculated model and print the key outputs.
 
 Usage:
-    python check_model.py model.xlsx [model_inputs.json]
+    python check_model.py model.xlsx [model_inputs.json] [--all]
+
+--all first prints base, bull and bear side by side (each recalculated on a temporary copy with the
+scenario switch set), for the checkpoint; then checks the workbook as saved.
 
 Run AFTER recalc.py or the host's recalculation tool (openpyxl-written formulas have no values until then).
 Checks are done independently in Python from the recalculated values, not by trusting the
@@ -16,11 +19,41 @@ workbook's own Checks tab:
 Exit code 0 = pass (warnings allowed), 1 = hard failure.
 """
 import json
+import os
+import re
+import subprocess
 import sys
+import tempfile
 from openpyxl import load_workbook
 
-path = sys.argv[1]
-inputs = json.load(open(sys.argv[2])) if len(sys.argv) > 2 else None
+ALL = "--all" in sys.argv
+ARGS = [a for a in sys.argv[1:] if a != "--all"]
+path = ARGS[0]
+inputs = json.load(open(ARGS[1])) if len(ARGS) > 1 else None
+
+if ALL:
+    here = os.path.dirname(os.path.abspath(__file__))
+    keys = ("Value per share - perpetuity growth method", "Value per share at the brokers discount rate",
+            "Upside / (downside)", "RESULT")
+    rows, tmp = {}, tempfile.mkdtemp(prefix="scen_")
+    for n, name in ((1, "Base"), (2, "Bull"), (3, "Bear")):
+        wbf = load_workbook(path)
+        ws = wbf["Assumptions"]
+        hit = next(r for r in range(1, ws.max_row + 1)
+                   if str(ws.cell(row=r, column=1).value or "").startswith("Active scenario"))
+        ws.cell(row=hit, column=3, value=n)
+        cp = os.path.join(tmp, f"scenario_{n}.xlsx")
+        wbf.save(cp)
+        subprocess.run([sys.executable, os.path.join(here, "recalc.py"), cp], capture_output=True, text=True)
+        out = subprocess.run([sys.executable, os.path.abspath(__file__), cp] + ARGS[1:2], capture_output=True, text=True).stdout
+        for k in keys:
+            m = re.search(re.escape(k) + r"[^\n]*?\s(\S+)\s*$", out, re.M)
+            rows.setdefault(k, {})[name] = m.group(1) if m else "-"
+    print("Scenarios (each recalculated on a copy; the saved workbook is unchanged)")
+    print(f"{'':58}{'Base':>14}{'Bull':>14}{'Bear':>14}")
+    for k in keys:
+        print(f"{k[:58]:58}" + "".join(f"{rows[k][s]:>14}" for s in ("Base", "Bull", "Bear")))
+    print()
 wb = load_workbook(path, data_only=True)
 
 

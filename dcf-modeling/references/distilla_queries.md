@@ -187,11 +187,18 @@ names (Anta: FY2023 and FY2024 cells). If its year ends before the last actual f
 `P.duration` IN `["quarter", "half", "nine_months"]` and `P.end_date` inside that year (the year-to-date and
 last-quarter cells). Always add the current fiscal year's latest interim cell (`P.duration` IN `["quarter",
 "half", "nine_months"]`, `P.end_date` after the last actual year): with its prior-year comparative,
-segments.py writes `ytd_growth` and the first forecast year starts from it. Leave out cells with a different segment structure (Micron's 2020 cell: CNBU / MBU /
+segments.py writes `ytd_growth` and the first forecast year starts from it. Prefer a cell that carries
+restated prior-year columns; when the latest has none, segments.py falls back to the latest span that does
+(Caterpillar: H1 2026 has none, Q1 2026 has restated Q1 2025). After a segment restructure (Caterpillar moved
+Rail into Resource Industries in 2026), never pair a new-structure cell with an old-structure one: use
+restated comparatives or no year-to-date growth, and say which. Interim cells can label the field differently
+from the annual one and mix breakdowns (segment, region, end market) in one field: give both labels with
+`--revenue` and pick the segments with `--keep`. Leave out cells with a different segment structure (Micron's 2020 cell: CNBU / MBU /
 SBU / EBU). When one field holds several breakdowns at once (Anta "Revenue": brand, product and channel),
 the listing warns that they overlap: keep one breakdown with `--keep` (repeat it per segment).
 The latest annual cell usually carries three years (Caterpillar FY2025: 2023–25). Save the rows to a file
-and run `python <skill_dir>/scripts/segments.py cells.json` to list the fields and segments, then
+exactly as Distilla returns them (each row's `content` verbatim, written by code from the tool result) —
+never retyped — and run `python <skill_dir>/scripts/segments.py cells.json` to list the fields and segments, then
 `--revenue "<field>"` (plus `--units "<field>"` for a structured unit series and `--profit "<field>"` for
 segment operating profit — the listing marks profit candidates; check the margins it prints look like
 operating margins, not gross; a finance segment's pre-tax profit is its segment profit and is right as it

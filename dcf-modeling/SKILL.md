@@ -252,7 +252,9 @@ year cited in `line_sources`, and set `basis_type`; business-segment rows still 
 - From the latest filing: the net pension and retiree-benefit deficit (`bridge.pension_deficit`,
   pre-tax; 0 when funded).
 - If consensus follows the company's own operating profit (an adjusted measure, or one that includes
-  other income Distilla books below EBIT), that operating profit for up to the last 3 years
+  other income Distilla books below EBIT) — take the basis the brokers' estimates use (adjusted, e.g.
+  before restructuring, when the notes quote adjusted margins), and check it: its margin should sit
+  close to the consensus margin for a year consensus covered — that operating profit for up to the last 3 years
   (`basis_gap.adjusted_by_year`); the script takes the median gap to Distilla's EBIT, either sign,
   off every consensus-derived margin. When the CONSENSUS BASIS flag fires and the move is real (an
   upcycle), record `basis_gap = {"none": true, "reason": "..."}` instead.
@@ -351,7 +353,8 @@ draft value. Then present, compactly, in chat:
   mix-built company margin against the company-level path (the script flags a terminal gap over 2 points).
 - WACC and terminal growth, each input tagged *live* or *default*, and beside them the discount
   rates the broker notes state with the value per share at their median rate (or "none stated").
-- **Draft value per share** for base, bull and bear against the price, and what the price implies
+- **Draft value per share** for base, bull and bear against the price (`check_model.py --all` prints all
+  three from one workbook), and what the price implies
   (reverse DCF). A gap over ±40% is judgment call 4: name the input that drives it.
 - **Finance arm**, when one is valued separately: book equity, ROE, justified P/B and value, each
   marked live, derived or default.
