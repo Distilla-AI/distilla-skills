@@ -385,7 +385,9 @@ def main():
     wacc["target_debt_weight"] = W.get("target_debt_weight")  # None = use current market weights
 
     # ---------- forecast horizon & dates
-    g_term = W.get("terminal_growth", cdef["g"])
+    g_term = W.get("terminal_growth")
+    if g_term is None:  # absent or null in raw.json -> country default
+        g_term = cdef["g"]
     g_term = min(g_term, rf)  # terminal growth above the risk-free rate is rarely defensible
     base_rev_path = [C["sales_mean"][p] for p in cons_periods]
     cagr = None
