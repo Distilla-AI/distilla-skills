@@ -166,6 +166,17 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
 
     names = list(SEG["revenue"])
     hist = {s: match(SEG["revenue"][s]) for s in names}
+    # A small segment with no value for the last actual year (an "All Other" line a later cell omits) moves
+    # into other / eliminations rather than blocking the tab; a material one still blocks it.
+    for s in list(names):
+        if hist[s][-1] is None:
+            last = next((v for v in reversed(hist[s]) if v is not None), None)
+            i_last = max((i for i, v in enumerate(hist[s]) if v is not None), default=None)
+            if last is not None and rev[i_last] and abs(last) / rev[i_last] < 0.02:
+                names.remove(s)
+                flags.append(f"SEGMENTS: '{s}' has no {periods[-1][:4]} value and is small ({abs(last) / rev[i_last]:.1%} of "
+                             "revenue in its last year) - moved into other / eliminations.")
+    hist = {s: hist[s] for s in names}
     if len(names) < 2:
         flags.append("SEGMENTS not used: fewer than 2 segments - revenue stays on the single growth rate.")
         return None
