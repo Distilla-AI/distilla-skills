@@ -199,7 +199,8 @@ Toyota Financial Services). If its assets are 10% or more of total assets, fill 
           "beta_published":[1.09,0.92],"beta_published_sources":"Yahoo 5Y monthly 1.09; GuruFocus 0.92"},
  "long_history": {"income_statement_sales": {...}, "income_statement_ebit_operating_income": {...}},
  "recurring_charges": {"adjusted_by_year": {"2025": 0, "2024": 0, "2023": 0}, "source": ""},   // company-adjusted EBIT; omit when none
- "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0},
+ "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0,
+                      "basis":"<vendor EV with or without a finance arm's debt, from the spot-check>"},
  "finance_arm": {"name":"","period":"YYYY-MM-DD","segment_source":"","revenue":0,"profit_pretax":0,"assets":0,
                  "st_receivables":null,"lt_receivables":null,"debt":null,"equity":null,"cash":null,
                  "leased_assets":null,"bs_source":"",

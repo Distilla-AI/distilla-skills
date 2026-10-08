@@ -395,8 +395,9 @@ def main():
         tax_eff = valid_tax[len(valid_tax) // 2]
         if tax_eff < 0.5 * cdef["tax"]:
             flags.append(f"Effective tax rate {tax_eff:.1%} is under half the statutory rate "
-                         f"({cdef['tax']:.1%}) - credits/incentives. Ask the user whether to normalise "
-                         f"toward statutory in later forecast years.")
+                         f"({cdef['tax']:.1%}) - credits, incentives or one-off charges. The draft fades it to "
+                         f"statutory by the last forecast year (WACC and finance-arm ROE use statutory). Ask the "
+                         f"user; their rate goes in assumption_overrides.")
     else:
         tax_eff = cdef["tax"]
         flags.append(f"Tax rate: no usable history, using statutory default {cdef['tax']:.1%}.")
@@ -470,7 +471,10 @@ def main():
     else:
         wacc["kd_pretax_source"] = W.get("kd_pretax_source", "user/web")
     wacc["kd_pretax"] = round(kd, 4)
-    wacc["tax_rate"] = round(tax_eff, 4)
+    # A rate under half statutory (credits, one-off charges) is not a long-run rate: the forecast fades it
+    # to statutory, and the long-run uses (WACC, finance-arm ROE, pension after tax) take statutory.
+    tax_low = tax_eff < 0.5 * cdef["tax"]
+    wacc["tax_rate"] = round(cdef["tax"] if tax_low else tax_eff, 4)
     wacc["target_debt_weight"] = W.get("target_debt_weight")  # None = use current market weights
 
     # ---------- forecast horizon & dates
@@ -649,6 +653,9 @@ def main():
         pts[N - 1] = g_term
         scen[sc]["revenue_growth"] = piecewise(pts, N)
         basis["revenue_growth"][sc] = {"type": a.get("basis_type", "evidence"), "text": a["basis"]}
+    if peak and (anchors.get("ebit_margin") or {}).get("base"):
+        flags[:] = [f + " REPLACED in base by the evidence anchor (see the basis table)."
+                    if f.startswith("CYCLICAL PEAK GUARD") else f for f in flags]
     if not anchors:
         flags.append("No evidence anchors yet: post-consensus growth and margins are FORMULA values with no "
                      "evidence behind them. Run the evidence step before the checkpoint.")
@@ -783,7 +790,8 @@ def main():
         "dpo": [last_or_avg("dpo", 0, 365, 45)] * N,
         "oca_pct_rev": [last_or_avg("oca_pct_rev", -1, 1, 0.02)] * N,
         "ocl_pct_rev": [last_or_avg("ocl_pct_rev", -1, 1, 0.05)] * N,
-        "tax_rate": [tax_eff] * N,
+        "tax_rate": ([tax_eff + (cdef["tax"] - tax_eff) * i / max(1, N - 1) for i in range(N)] if tax_low
+                     else [tax_eff] * N),
         "cash_yield": [round(cash_yield, 4)] * N,
         "cost_of_debt": [round(kd_book, 4)] * N,
         "payout": [clamp(avg(hist_ratios["payout"][last3]), 0, 1.5) or 0.0] * N,
@@ -886,7 +894,11 @@ def main():
     print(f"\nHistorical (last FY): GM {hist_ratios['gross_margin'][-1]:.1%}, EBIT margin "
           f"{hist_ratios['ebit_margin'][-1]:.1%}, DSO {assumptions['dso'][0]:.0f}, DIO "
           f"{assumptions['dio'][0]:.0f}, DPO {assumptions['dpo'][0]:.0f}")
-    print(f"Tax {tax_eff:.1%} | payout {assumptions['payout'][0]:.0%} | buybacks {assumptions['buyback_pct_ni'][0]:.0%} of NI")
+    rb = "FCF" if model["assumptions"]["return_basis"] == 2 else "NI"
+    tx = model["assumptions"]["tax_rate"]
+    print(f"Tax {tx[0]:.1%}" + (f" -> {tx[-1]:.1%}" if abs(tx[-1] - tx[0]) > 1e-4 else "")
+          + f" | payout {model['assumptions']['payout'][0]:.0%} of {rb} | buybacks "
+          f"{model['assumptions']['buyback_pct_ni'][0]:.0%} of {rb}")
     print(f"WACC inputs: rf {wacc['rf']:.2%} ({wacc['rf_source']}); beta {wacc['beta']:.2f} ({wacc['beta_source']});")
     print(f"  ERP {wacc['erp']:.2%}; CRP {wacc['crp']:.2%}; Kd {wacc['kd_pretax']:.2%} ({wacc['kd_pretax_source']})")
     print(f"Terminal growth {g_term:.2%} | today's market EV/EBITDA {exit_mult:.1f}x (reference only; not a terminal assumption)")

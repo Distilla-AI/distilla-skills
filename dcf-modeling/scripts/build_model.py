@@ -893,8 +893,9 @@ dsb.scalar("mkt_mult", "Today's market EV / FY1 EBITDA (reference only)", None, 
            source="Today's multiple prices today's growth; applying it to a mature terminal year is inconsistent")
 dsb.scalar("impl_g_mkt", "Perpetual growth implied if today's multiple held at the terminal year", None, PCT2)
 dsb.scalar("vps_x", "Value per share at your exit multiple (only if entered)", None, PS)
-_mh_src = (f"Distilla valuation_multiple {MH.get('type')} since {MH.get('from')}, n = {MH.get('n')} "
-           "(vendor EV, consolidated)" if MH.get("avg") is not None else "Not retrieved")
+_mh_src = (f"Distilla valuation_multiple {MH.get('type')} since {MH.get('from')}, n = {MH.get('n')}; "
+           f"vendor EV basis: {MH.get('basis') or 'not stated - spot-check against a rebuild'}"
+           if MH.get("avg") is not None else "Not retrieved")
 dsb.scalar("mh_avg", "Own-history NTM EV/EBITDA - average", float(MH["avg"]) if MH.get("avg") is not None else None, MULT, source=_mh_src)
 dsb.scalar("mh_min", "Own-history NTM EV/EBITDA - low", float(MH["min"]) if MH.get("min") is not None else None, MULT)
 dsb.scalar("mh_max", "Own-history NTM EV/EBITDA - high", float(MH["max"]) if MH.get("max") is not None else None, MULT)
