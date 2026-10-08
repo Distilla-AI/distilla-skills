@@ -196,7 +196,8 @@ Toyota Financial Services). If its assets are 10% or more of total assets, fill 
             "fx_source":"","target_price":0,"vendor_market_cap_usd":null,"usd_per_price_currency":1.0},
  "bridge": {"as_of":"YYYY-MM-DD","source":"","cash":0,"lt_investments":0,"st_debt":0,
             "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0,
-            "pension_deficit":null,"pension_source":"","basic_shares":null},
+            "pension_deficit":null,"pension_source":"","basic_shares":null,
+            "shares_source":""},   // say which count diluted_shares holds when you replace it (e.g. basic after the share-count flag)
  "include_lt_investments": 1,
  "wacc": {"rf":0.0,"rf_source":"","beta":null,"beta_source":"","erp":null,"erp_source":"",
           "crp":null,"crp_source":"","kd_pretax":null,"terminal_growth":null,

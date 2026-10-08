@@ -760,7 +760,8 @@ dsb.scalar("price", "Share price", MK["price"], PS, unit=MK.get("price_currency"
            source=f"Distilla stock_price close {MK.get('price_date', '')}")
 dsb.scalar("fx", f"FX: {CUR} per 1 {MK.get('price_currency', CUR)}", MK.get("fx_reporting_per_price", 1.0), '0.0000',
            source=MK.get("fx_source", "1.0 = same currency"))
-dsb.scalar("shares", "Diluted shares", B["diluted_shares"], NUM1, unit="m", source=f"Distilla diluted shares, {B['as_of']}")
+dsb.scalar("shares", "Shares for value per share", B["diluted_shares"], NUM1, unit="m",
+           source=B.get("shares_source") or f"Distilla diluted shares, {B['as_of']}")
 dsb.scalar("b_cash", "(+) Cash & ST investments", B["cash"], NUM, source=f"Distilla, {B['as_of']}")
 dsb.scalar("b_lti", "(+) Long-term investments (non-operating)", B.get("lt_investments", 0), NUM,
            source="Distilla total LT investments; toggle below if these are operating assets")
