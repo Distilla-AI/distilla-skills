@@ -19,7 +19,8 @@ fades or a payout changes. Tested on Samsung Electronics (Sep 2026).
 | Source | What it is | Use it for | Verdict |
 |---|---|---|---|
 | `company_drivers` | One table per company: driver, causal link, evidence with numbers, current vs past. Updated every few days | The backbone: cycle position, pricing, competition, capital allocation, risks | **Always** — one query |
-| `search_public_library` | Synthesised answer over recent sell-side research, with document titles and dates | Targeted questions about specific assumptions | **Always** — 2 to 3 questions |
+| `search_public_library` `list` + `get_library_document` | Catalog of broker notes (90 days), then a note's summary: rating, target price, date | Rule 3a coverage: which brokers cover the company, their latest view and target | **Always** — one list, up to 3 notes read |
+| `search_public_library` `synthesize` | Synthesised answer over recent sell-side research, with document titles and dates | Targeted questions about specific assumptions | **Always** — 2 to 3 questions |
 | `ku_cell` (knowledge units) | Per-topic qualitative cells (pricing power, operating leverage, catalysts ...), about 13 quarters, cited to filing pages | Supporting quotes with page-level sourcing, when a relevant KU exists | Optional |
 | `file` | Metadata only (type, date, period); no text | Freshness: date of the latest results and transcript | Metadata only |
 | `file` news articles | Company tag is loose (Samsung's includes unrelated articles) | — | **Don't use** |
@@ -33,7 +34,16 @@ query_entity(entity="company_drivers",
   select=["symbol","updated_at","content"], limit=1)
 ```
 
-**search_public_library**: write one specific question per call, naming the company, the year and
+**Broker coverage (rule 3a)** — list first, then read the latest note of up to 3 brokers:
+```
+search_public_library(query="<company>", mode="list", date_range="90d", doc_types=["Research"],
+  tickers=["<ticker>"])
+get_library_document(document_id=<id>)   # summary: rating, target price, change old -> new, date
+```
+Fewer than 3 brokers → the same list once at `date_range="180d"`. The `Brokers:` line in the
+delivery reports the counts and the notes read.
+
+**search_public_library** `mode="synthesize"`: write one specific question per call, naming the company, the year and
 the assumption. For example: "Samsung Electronics 2026 memory capex outlook HBM pricing guidance".
 The answer is synthesised and lists sources (title, type, publication_date). Prefer sources from
 the last ~60 days.
@@ -94,7 +104,8 @@ Spend the questions where value is sensitive or a flag fired:
   date for every finding.
 - **Some evidence is valuation-neutral.** Shareholder-return policy changes the balance sheet and
   EPS but not the DCF value, so say so when you propose it.
-- **Stay quick.** One drivers query plus 2–3 library questions is usually enough. Skip KUs unless
+- **Stay quick.** One drivers query, the broker list with up to 3 notes, plus 2–3 library
+  questions is usually enough. Skip KUs unless
   a relevant one exists.
 - **When Distilla runs dry**, use the company's own disclosures (web search: "<company> long-term
   margin target", shareholder letters, 8-K / annual report). A stated company target is a valid

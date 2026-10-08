@@ -247,7 +247,9 @@ def main():
     div = [abs(x) for x in s0("cash_flow_cash_dividends_paid")]
     bb = [abs(x) for x in s0("cash_flow_repurchase_of_common_and_preferred_stock")]
     int_inc = s("income_statement_nonoperating_interest_income")
-    int_exp = s("income_statement_interest_expense")
+    # Cost of debt uses gross interest (before capitalized interest); the net line is the fallback
+    int_exp = [g if g is not None else n_ for g, n_ in zip(s("income_statement_gross_interest_expense"),
+                                                        s("income_statement_interest_expense"))]
 
     def safe(a, b):
         return a / b if b else None
@@ -317,6 +319,60 @@ def main():
     fx = mkt.get("fx_reporting_per_price", 1.0)
     mcap = mkt["price"] * fx * bridge["diluted_shares"]
     debt_total = bridge.get("st_debt", 0) + bridge.get("lt_debt", 0) + bridge.get("leases", 0)
+    vm = mkt.get("vendor_market_cap_usd")
+    if vm:
+        rebuilt_usd = mkt["price"] * bridge["diluted_shares"] * mkt.get("usd_per_price_currency", 1.0)
+        gap = rebuilt_usd / vm - 1
+        mkt["mcap_check"] = f"rebuilt {rebuilt_usd:,.0f} vs Distilla market_cap {vm:,.0f} (USD m): {gap:+.1%}"
+        if abs(gap) > 0.10:
+            flags.append(f"MARKET CAP CHECK: rebuilt market cap is {gap:+.1%} from Distilla's - check the share "
+                         "count basis (classes, ADR ratio) and the FX rate before trusting value per share.")
+    # ---------- finance arm (captive finance) valued separately: see SKILL.md field notes
+    fa_raw = raw.get("finance_arm") or {}
+    fa = None
+    ta_last = s0("balance_sheet_total_assets")[-1]
+    if fa_raw.get("assets") and ta_last:
+        share = fa_raw["assets"] / ta_last
+        if share < 0.10:
+            flags.append(f"Finance segment '{fa_raw.get('name')}' is {share:.0%} of total assets (<10%): not separated.")
+        else:
+            fa = {"on": 1, "name": fa_raw.get("name", "Finance arm"), "assets": fa_raw["assets"],
+                  "asset_share": round(share, 4), "period": fa_raw.get("period"),
+                  "segment_source": fa_raw.get("segment_source", "Distilla by_segment_financials"),
+                  "profit": fa_raw.get("profit_pretax") or 0.0, "revenue": fa_raw.get("revenue"),
+                  "pb_override": fa_raw.get("pb_override")}
+            if fa_raw.get("period") and fa_raw["period"][:7] != periods[-1][:7]:
+                flags.append(f"Finance segment figures are for {fa_raw['period']}, not the last actual year "
+                             f"{periods[-1]} - the profit share of revenue may be off.")
+            bs_src = fa_raw.get("bs_source") or "annual report"
+            if fa_raw.get("equity") is not None:
+                fa["equity"], fa["equity_basis"] = fa_raw["equity"], f"{bs_src} (live)"
+            else:
+                lev, lsrc = fa_raw.get("leverage"), fa_raw.get("leverage_source")
+                if lev is None:
+                    lev, lsrc = 7.0, "DEFAULT 7x debt/equity (typical captive finance) - verify"
+                    flags.append("Finance arm: no equity or leverage found - equity estimated at a DEFAULT 7x leverage.")
+                fa["equity"] = fa["assets"] / (1 + lev)
+                fa["equity_basis"] = f"estimate: assets / (1 + leverage {lev:.2f}x; {lsrc})"
+            if fa_raw.get("debt") is not None:
+                fa["debt"], fa["debt_basis"] = fa_raw["debt"], f"{bs_src} (live)"
+            else:
+                fa["debt"] = fa["assets"] - fa["equity"]
+                fa["debt_basis"] = "estimate: assets - estimated equity"
+            fa["debt"] = min(fa["debt"], bridge.get("st_debt", 0) + bridge.get("lt_debt", 0))
+            if fa_raw.get("lt_receivables") is not None:
+                fa["lt_rec"] = min(fa_raw["lt_receivables"], bridge.get("lt_investments", 0))
+                fa["lt_rec_basis"] = fa_raw.get("lt_receivables_source") or bs_src
+            else:
+                fa["lt_rec"], fa["lt_rec_basis"] = 0.0, "not found - long-term investments kept whole"
+                flags.append("Finance arm: long-term finance receivables not found - they may sit in long-term "
+                             "investments AND in the finance arm's equity value (double count). Source them.")
+            if fa_raw.get("st_receivables") is not None and rec[-1]:
+                fa["rec_share"] = clamp(fa_raw["st_receivables"] / rec[-1], 0.0, 1.0)
+                fa["rec_share_basis"] = f"current finance receivables {fa_raw['st_receivables']:,.0f} / receivables {rec[-1]:,.0f}"
+            else:
+                fa["rec_share"], fa["rec_share_basis"] = 0.0, "not found - finance receivables growth stays in the cash flow (conservative)"
+            fa["profit_pct"] = fa["profit"] / rev[-1] if rev[-1] else 0.0
     # Effective tax: median of recent years with a normal (0-50%) rate; tax-benefit years are ignored
     valid_tax = sorted(t for t in hist_ratios["tax_rate"][last3] if t is not None and 0 <= t <= 0.5)
     if valid_tax:
@@ -333,6 +389,8 @@ def main():
     # often low-R2 (weak link to the benchmark), which is why the adjustment and band exist.
     sector = (co.get("sector") or "").lower()
     bu = next((b for k, b in SECTOR_UNLEVERED_BETA.items() if k in sector), DEFAULT_UNLEVERED_BETA)
+    # Published betas are measured on the whole company's shares (finance arm included), so the
+    # sector check relevers at consolidated leverage even when a finance arm is valued separately.
     de = debt_total / mcap if mcap else 0
     b_sector = bu * (1 + (1 - tax_eff) * de)
     raws = [float(x) for x in (W.get("beta_published") or []) if x is not None]
@@ -367,17 +425,26 @@ def main():
     #  - kd_book: historical interest / average debt -> drives forecast interest expense on existing debt
     #  - kd (WACC): marginal cost of new debt today -> never below rf + a spread
     kd_h = clamp(avg(kd_hist), 0.0, 0.20)
+    kd_ind = None
+    if fa and int_exp[-1] not in (None, 0):
+        d_ind = std[-1] + ltdx[-1] - fa["debt"]
+        if d_ind > 0:
+            kd_ind = clamp(int_exp[-1] / d_ind, 0.0, 0.20)
     kd_book = kd_h if (kd_h and kd_h > 0.005) else rf + 0.015
     kd = W.get("kd_pretax")
     if kd is None:
         spread = W.get("credit_spread", 0.015)
-        if kd_h and kd_h > rf + 0.002:
+        if kd_ind and kd_ind > rf + 0.002:
+            kd = kd_ind
+            wacc["kd_pretax_source"] = ("Interest expense / industrial debt (consolidated debt less finance-arm "
+                                        "debt; Distilla + finance-arm balance sheet)")
+        elif kd_h and kd_h > rf + 0.002 and not fa:
             kd = kd_h
-            wacc["kd_pretax_source"] = "Historical interest expense / average debt (Distilla)"
+            wacc["kd_pretax_source"] = "Historical gross interest expense / average debt (Distilla)"
         else:
             kd = rf + spread
-            wacc["kd_pretax_source"] = (f"rf + {spread*1e4:.0f}bp spread (historical book rate "
-                                        f"{(kd_h or 0):.2%} is below today's rf) - verify")
+            why = ("finance-arm interest sits in cost of sales" if fa else f"historical book rate {(kd_h or 0):.2%} is below today's rf")
+            wacc["kd_pretax_source"] = f"DEFAULT rf + {spread*1e4:.0f}bp spread ({why}) - verify"
     else:
         wacc["kd_pretax_source"] = W.get("kd_pretax_source", "user/web")
     wacc["kd_pretax"] = round(kd, 4)
@@ -430,6 +497,11 @@ def main():
             m.append(ep[i] / sp[i] if ep[i] is not None else None)
         return g, m
 
+    # historical reference points for anchoring and the peak guard (uses long_history if provided)
+    LH = pivot(raw.get("long_history") or {}, "M.name")
+    ref_rev = {**{p: v for p, v in LH.get("income_statement_sales", {}).items()}, **dict(zip(periods, rev))}
+    ref_ebit = {**{p: v for p, v in LH.get("income_statement_ebit_operating_income", {}).items()}, **dict(zip(periods, ebit))}
+    ref_m = {p: ref_ebit[p] / ref_rev[p] for p in sorted(ref_rev) if ref_rev.get(p) and ref_ebit.get(p) is not None}
     hist_g = avg(hist_ratios["revenue_growth"][last3]) or 0.03
     hist_m = avg(hist_ratios["ebit_margin"][last3]) or 0.10
     scen = {}
@@ -442,7 +514,11 @@ def main():
     # Steady-state margin for years after consensus. Default: hold the last consensus margin.
     # Cyclical-peak guard: if that margin is > 1.5x the full-history average, fade to the midpoint
     # (a mid-cycle margin) instead of capitalising peak earnings forever.
-    hist_all_m = avg(hist_ratios["ebit_margin"])
+    # Peak guard tests against the long-run average when 8+ years are available (a 5-year window can
+    # sit inside one cycle: Caterpillar FY21-25 averaged 17.5% vs 13.5% over 2010-25).
+    long_run = len(ref_m) >= 8
+    hist_all_m = avg(list(ref_m.values())) if long_run else avg(hist_ratios["ebit_margin"])
+    hist_span = f"{sorted(ref_m)[0][:4]}-{sorted(ref_m)[-1][:4]}" if long_run else f"{L}-yr"
     def steady(m_last):
         if hist_all_m and hist_all_m > 0 and m_last > 1.5 * hist_all_m and N > ncons:
             return (m_last + hist_all_m) / 2, True
@@ -450,7 +526,7 @@ def main():
     ss_base, peak = steady(bm[-1])
     if peak:
         flags.append(f"CYCLICAL PEAK GUARD: last consensus EBIT margin {bm[-1]:.1%} is >1.5x the "
-                     f"{L}-yr average ({hist_all_m:.1%}); beyond-consensus margins fade to a mid-cycle "
+                     f"{hist_span} average ({hist_all_m:.1%}); beyond-consensus margins fade to a mid-cycle "
                      f"{ss_base:.1%}. Confirm with the user - this is the biggest value driver.")
     scen["base"] = {"revenue_growth": fade(bg, N, g_term), "ebit_margin": fade(bm, N, ss_base)}
     for name, sk, ek, dg, dm in (("bull", "sales_high", "ebit_high", 0.02, 0.01),
@@ -524,11 +600,6 @@ def main():
         flags.append("No evidence anchors yet: post-consensus growth and margins are FORMULA values with no "
                      "evidence behind them. Run the evidence step before the checkpoint.")
 
-    # historical reference points for anchoring (uses long_history if provided)
-    LH = pivot(raw.get("long_history") or {}, "M.name")
-    ref_rev = {**{p: v for p, v in LH.get("income_statement_sales", {}).items()}, **dict(zip(periods, rev))}
-    ref_ebit = {**{p: v for p, v in LH.get("income_statement_ebit_operating_income", {}).items()}, **dict(zip(periods, ebit))}
-    ref_m = {p: ref_ebit[p] / ref_rev[p] for p in sorted(ref_rev) if ref_rev.get(p) and ref_ebit.get(p) is not None}
     reference_points = {"ebit_margin_by_year": {p[:4]: round(v, 4) for p, v in ref_m.items()},
                         "ebit_margin_avg": round(sum(ref_m.values()) / len(ref_m), 4) if ref_m else None,
                         "ebit_margin_max": max(ref_m.values()) if ref_m else None,
@@ -668,6 +739,9 @@ def main():
     ev_now = (mcap + debt_total - (1 - subtract_leases) * bridge.get("leases", 0) - bridge.get("cash", 0)
               - bridge.get("lt_investments", 0) * raw.get("include_lt_investments", 1)
               + bridge.get("minority_interest", 0))
+    if fa:  # industrial EV: finance debt, finance receivables and the finance arm (at book) come out
+        ev_now += -fa["debt"] + fa["lt_rec"] * raw.get("include_lt_investments", 1) - fa["equity"]
+        ebitda1 -= fa["profit"] * (1 + scen["base"]["revenue_growth"][0])
     exit_mult = round(ev_now / ebitda1, 1) if ebitda1 and ebitda1 > 0 else 10.0
 
     model = {
@@ -700,6 +774,8 @@ def main():
         "notes": [TERMINAL_FADE_NOTE],
         "basis": basis,
         "reference_points": reference_points,
+        "finance_arm": fa or {},
+        "multiple_history": raw.get("multiple_history") or {},
         "evidence": [],  # filled by the assistant in the evidence step (see references/evidence_guide.md)
         "flags": flags,
     }
@@ -748,6 +824,21 @@ def main():
     print(f"WACC inputs: rf {wacc['rf']:.2%} ({wacc['rf_source']}); beta {wacc['beta']:.2f} ({wacc['beta_source']});")
     print(f"  ERP {wacc['erp']:.2%}; CRP {wacc['crp']:.2%}; Kd {wacc['kd_pretax']:.2%} ({wacc['kd_pretax_source']})")
     print(f"Terminal growth {g_term:.2%} | today's market EV/EBITDA {exit_mult:.1f}x (reference only; not a terminal assumption)")
+    mh = raw.get("multiple_history") or {}
+    if mh.get("avg") is not None:
+        print(f"Own-history {mh.get('type')} since {mh.get('from')}: avg {float(mh['avg']):.1f}x, "
+              f"low {float(mh['min']):.1f}x, high {float(mh['max']):.1f}x (n={mh.get('n')})")
+    if mkt.get("mcap_check"):
+        print("Market cap check: " + mkt["mcap_check"])
+    if fa:
+        roe = fa["profit"] * (1 - tax_eff) / fa["equity"] if fa["equity"] else None
+        print(f"Finance arm valued separately - {fa['name']}: assets {fa['assets']:,.0f} ({fa['asset_share']:.0%} of total), "
+              f"pre-tax profit {fa['profit']:,.0f} ({fa['profit_pct']:.1%} of revenue)")
+        print(f"  equity {fa['equity']:,.0f} [{fa['equity_basis']}]; debt {fa['debt']:,.0f} [{fa['debt_basis']}]")
+        print(f"  LT finance receivables {fa['lt_rec']:,.0f} [{fa['lt_rec_basis']}]; current share of receivables "
+              f"{fa['rec_share']:.0%} [{fa['rec_share_basis']}]")
+        if roe is not None:
+            print(f"  after-tax ROE {roe:.1%}; justified P/B = (ROE - g) / (cost of equity - g) is computed in the workbook")
     rp = reference_points
     if rp["ebit_margin_by_year"]:
         yrs = sorted(rp["ebit_margin_by_year"])

@@ -9,6 +9,7 @@ Read this before querying. Every step below was tested against live Distilla dat
 3. Latest quarterly balance sheet (equity bridge)
 4. Consensus estimates
 5. Share price and target
+5b. Finance arm (captive finance)
 6. Sanity checks before writing raw.json
 7. raw.json schema
 8. Gotchas (read this)
@@ -49,13 +50,13 @@ query_entity(entity="financial_data_point",
   sort=[{"field":"M.name","direction":"asc"},{"field":"T.end_date","direction":"asc"}],
   limit=300)
 ```
-METRICS (56 — every line the Model tab itemises; tested on Apple, Samsung, BYD, Fast Retailing).
+METRICS (57 — every line the Model tab itemises; tested on Apple, Samsung, BYD, Fast Retailing, Caterpillar).
 Every Distilla subtotal is a clean sum of these lines, which is what lets the model reconcile history
 line by line instead of plugging:
 
-Income statement (11): `income_statement_sales, income_statement_cost_of_goods_sold_cogs_incl_d_and_a,
+Income statement (12): `income_statement_sales, income_statement_cost_of_goods_sold_cogs_incl_d_and_a,
 income_statement_ebit_operating_income, income_statement_nonoperating_interest_income,
-income_statement_interest_expense, income_statement_pretax_income, income_statement_income_taxes,
+income_statement_interest_expense, income_statement_gross_interest_expense, income_statement_pretax_income, income_statement_income_taxes,
 income_statement_minority_interest, income_statement_net_income,
 income_statement_diluted_shares_outstanding, income_statement_dividends_per_share`
 
@@ -82,7 +83,9 @@ cash_flow_other_financing_funds, cash_flow_net_financing_cash_flow, cash_flow_ex
 cash_flow_net_change_in_cash`
 (`cash_flow_capital_expenditures_fixed_assets` only feeds the Distilla-definition FCF memo line.)
 
-56 metrics × 5 years = 280 rows, which fits under the 300-row limit. If it comes back truncated, split
+57 metrics × 5 years = 285 rows, which fits under the 300-row limit.
+`income_statement_gross_interest_expense` (before capitalized interest) is the cost-of-debt input; the
+net `income_statement_interest_expense` is the fallback when the gross line is `-`. If it comes back truncated, split
 into two queries (IS + BS, then CF).
 
 Optional fallbacks if a core line comes back "-": `balance_sheet_long_term_debt` (total incl. leases),
@@ -123,15 +126,45 @@ pass rows. `consensus_date` is the snapshot vintage, never the fiscal period.
 ```
 query_entity(entity="stock_price",
   filters=[{"field":"company_id","op":"eq","value":<id>},{"field":"date","op":"gte","value":"<~7 days ago>"}],
-  select=["symbol","date","close","sell_side_target_price","currency"],
+  select=["symbol","date","close","sell_side_target_price","currency","market_cap"],
   sort=[{"field":"date","direction":"desc"}], limit=1)
 ```
+
+`market_cap` is in USD for every listing (rule 2.6): it is the cross-check for the rebuilt market cap,
+never an input.
+
+## 5b. Finance arm (captive finance)
+
+```
+query_entity(entity="ku_cell",
+  joins=[{"relation":"ku","alias":"K"},{"relation":"cellTimePeriod","alias":"P"}],
+  filters=[{"field":"group_company_id","op":"eq","value":<id>},
+           {"field":"K.name","op":"in","value":["by_segment_financials","cash_and_debt"]}],
+  select=["id","K.name","cell_as_of_date","P.end_date","P.duration","content"],
+  sort=[{"field":"cell_as_of_date","direction":"desc"}], limit=6)
+```
+Look for a finance segment (Financial Products, Financial Services, GM Financial, Ford Credit,
+Toyota Financial Services). If its assets are 10% or more of total assets, fill `finance_arm`:
+- **From Distilla** (`by_segment_financials`, the fiscal year matching the last actual year): segment
+  revenue, pre-tax segment profit, segment assets. Parse the content in Python. Periods are
+  year-to-date and sometimes mislabelled (a 9-month cell tagged `quarter`), labels vary by filing, and
+  labels with commas shift the columns ("Selling, general and administrative" splits) — check each
+  value against the cell's period and unit before using it.
+- **From the annual report** (official filings, `†` with the as-of date): the supplemental
+  consolidating data or the finance segment's balance sheet gives finance receivables (current and
+  long-term), finance-arm debt and equity. One search for the filing, then fetch it.
+- **Fallback:** `cash_and_debt` comment text may give the finance arm's leverage (Cat Financial
+  covenant leverage 7.96x, Jun 2026) — record it as `leverage`; the script then estimates equity and
+  debt and flags them. Anything not found stays `null`.
 
 ## 6. Sanity checks before writing raw.json
 
 - **Consensus units vs actuals.** Compare FY1 consensus sales with the last actual year and with
   the sum of reported quarters in the current fiscal year. A 1000x gap means a units mismatch;
   a large but real jump (e.g. a memory up-cycle) will be visible in the quarterly actuals too.
+- **Market cap cross-check.** Rebuilt market cap (price × FX × diluted shares) converted to USD
+  against `stock_price.market_cap`: record both in `market` (`vendor_market_cap_usd`,
+  `usd_per_price_currency`, 1.0 for USD listings); the script flags a gap over 10%.
 - **Price currency vs reporting currency.** If they differ (ADRs, dual listings, HK-listed
   companies reporting in CNY such as BYD), find an FX rate by web search and set
   `fx_reporting_per_price` = reporting-currency units per 1 unit of price currency (BYD: 0.867 CNY
@@ -151,7 +184,7 @@ query_entity(entity="stock_price",
  "annual":    {"<metric>": {"<end_date>": "<value as delivered>"}},   // or the raw row list
  "consensus": {"sales_mean": {"<end_date>": "<value>"}, ...},          // or the raw row list
  "market": {"price":0,"price_date":"","price_currency":"","fx_reporting_per_price":1.0,
-            "fx_source":"","target_price":0},
+            "fx_source":"","target_price":0,"vendor_market_cap_usd":null,"usd_per_price_currency":1.0},
  "bridge": {"as_of":"YYYY-MM-DD","source":"","cash":0,"lt_investments":0,"st_debt":0,
             "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0},
  "include_lt_investments": 1,
@@ -159,6 +192,10 @@ query_entity(entity="stock_price",
           "crp":null,"crp_source":"","kd_pretax":null,"terminal_growth":null,
           "beta_published":[1.09,0.92],"beta_published_sources":"Yahoo 5Y monthly 1.09; GuruFocus 0.92"},
  "long_history": {"income_statement_sales": {...}, "income_statement_ebit_operating_income": {...}},
+ "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0},
+ "finance_arm": {"name":"","period":"YYYY-MM-DD","segment_source":"","revenue":0,"profit_pretax":0,"assets":0,
+                 "st_receivables":null,"lt_receivables":null,"debt":null,"equity":null,"bs_source":"",
+                 "leverage":null,"leverage_source":"","pb_override":null},   // omit when there is no finance arm
  "anchors": {...}, "evidence": [...], "returns": {...}   // from the evidence step; see evidence_guide.md
 }
 ```
@@ -176,7 +213,7 @@ Leave any WACC field `null` that you could not source live; the script fills a f
 | Capex, dividends, buybacks, lease repayments are negative in cash flow | Paste as-is |
 | `fiscal_year` labels unreliable | Always identify periods by `T.end_date` |
 | `provenance = "filing"` periods are LLM-derived | Use only `provenance = "financials"` for actuals |
-| `stock_price.market_cap` scale is inconsistent (Samsung off by ~1000x) | Never use it; model computes price × FX × diluted shares |
+| `stock_price.market_cap` is in USD for every listing (Samsung looks ~1000x off in KRW terms) | Cross-check only, after converting the rebuild to USD; the model computes price × FX × diluted shares |
 | SG&A already includes R&D | Model derives opex = gross profit − EBIT, so EBIT ties exactly |
 | Interest expense/income often blank in recent years | Model uses pretax − EBIT for historical non-operating |
 | Quarterly lease obligations often 0 / missing | Use the latest annual lease figure; note it in `leases_source` |

@@ -84,7 +84,7 @@ Raise only the ones that apply. Lead with the one that moves value most.
    typical for foreign listings with low R²), or several sources disagree, say so: a 0.2 change in
    beta moved value by 20–25% for BYD and Fast Retailing in testing.
 1. **Cyclical peak.** If the peak guard fired (last consensus margin above 1.5× the historical
-   average), explain that the draft fades margins to a mid-cycle level and ask whether the user
+   average — the long-run average when `long_history` gives 8+ years, else the last 5), explain that the draft fades margins to a mid-cycle level and ask whether the user
    believes the margin is structural. This was the single biggest value driver in testing
    (Samsung: holding a 56% memory-cycle margin vs fading to 34% moved value by about 25%).
 2. **Tax far below statutory.** Credits, incentives and loss carryforwards run out. A large
@@ -92,12 +92,14 @@ Raise only the ones that apply. Lead with the one that moves value most.
    Offer a normalised rate; the user's choice goes in `raw.json["assumption_overrides"]`.
 3. **Terminal value share of EV above ~75%.** The answer mostly rests on g and WACC; point the
    user to the sensitivity tab.
-4. **Market-implied gap.** If value per share is more than ±40% from the price, check the exit
+4. **Market-implied gap.** If the draft value per share (built before the checkpoint) is more than
+   ±40% from the price, check the exit
    multiple cross-check and the implied exit multiple. A big gap usually traces to one input
    (WACC, terminal margin, terminal growth). Name it rather than presenting the number as a
    verdict.
-5. **Negative forecast cash.** Usually buybacks set from history exceed future free cash flow;
-   propose a lower buyback % or debt issuance.
+5. **Negative forecast cash or capped buybacks.** Buybacks are capped at the cash available, so
+   negative cash now means dividends alone exceed it; capped years (Checks tab) mean the historical
+   buyback rate is not affordable. Propose a lower payout or buyback %, or debt issuance.
 6. **Capex below D&A.** For a growing company this shrinks the asset base. After consensus the
    draft sizes capex to keep PP&E/revenue stable; if consensus capex itself is far below D&A, say so.
 7. **PP&E / revenue drift (Checks tab).** Usually means revenue moved on price rather than volume,
@@ -111,7 +113,11 @@ Raise only the ones that apply. Lead with the one that moves value most.
    they look operating (strategic stakes the business depends on) or if the company is a holding
    company.
 11. **Share classes / FX.** Mention when diluted shares combine classes, or when a converted price
-   is used.
+   is used, and when the market-cap cross-check is more than 10% off.
+12. **Finance arm.** When one is valued separately, show its book equity and how it was sourced
+   (annual report, or estimated from leverage), its ROE and the justified P/B. Say that WACC rises:
+   the industrial business carries little of the group's debt once the finance arm's borrowing is
+   taken out. Name any input that fell back to a default (1.0× book, 7× leverage).
 
 ## WACC sourcing order (user choice: web search, then defaults)
 
@@ -122,9 +128,9 @@ the script fill a flagged default. Record the source text for every live value.
 |---|---|---|
 | Risk-free rate | "<country> 10-year government bond yield" (today's date) | country table in prepare_inputs.py (US, KR verified Sep 2026; others rough) |
 | Beta | full web search: "<ticker> beta 5Y monthly"; record all 5Y figures in `beta_published` | median → Blume-adjusted (⅔·raw + ⅓) → if >40% from relevered sector beta, 50/50 blend + flag; none found → sector beta |
-| ERP | "Damodaran implied equity risk premium <month year>" | 4.23% mature market (Damodaran, start of 2026) |
+| ERP | "Damodaran implied equity risk premium <month year>"; record the as-of month | 4.23% mature market (Damodaran, start of 2026) |
 | Country risk premium | only for non-US; "<country> country risk premium" | table in prepare_inputs.py |
-| Cost of debt | credit rating or bond yields if easy to find | historical interest ÷ average debt if above rf, else rf + 150bp |
+| Cost of debt | credit rating or bond yields if easy to find | gross interest ÷ average debt if above rf (with a finance arm: interest ÷ industrial debt), else rf + 150bp, labelled a default |
 | Terminal growth | not searched | country default, capped at rf |
 
 The WACC tax rate is the historical effective rate. Forecast interest expense uses the *historical*

@@ -35,6 +35,9 @@ CUR = M["company"].get("reporting_currency", "")
 UNITS = {"m": "mm", "b": "bn", "k": "k"}.get(M.get("units", "m"), M.get("units", "m"))
 A = M["assumptions"]
 RAW = M["historical"]["raw"]
+FA = M.get("finance_arm") or {}
+FA_ON = bool(FA.get("on"))
+MH = M.get("multiple_history") or {}
 
 # ---------------------------------------------------------------- formats & styles
 NUM = '#,##0;(#,##0);"-"'
@@ -439,7 +442,7 @@ asb.line("payout", "Dividends (% of net income or FCF - see basis above)", PCT,
          fc=inp(A["payout"]))
 asb.line("bb_pct", "Buybacks (% of net income or FCF - see basis above)", PCT,
          hist=hist_ratio(lambda j: f"-{raw('cash_flow_repurchase_of_common_and_preferred_stock', j)}/{ref('Income Statement', 'ni', j)}"),
-         fc=inp(A["buyback_pct_ni"]), note="If forecast cash turns negative, lower this - see Checks.")
+         fc=inp(A["buyback_pct_ni"]), note="Buybacks are capped at available cash (Schedules); Checks counts the capped years.")
 asb.line("debt_iss", f"Net debt issuance / (repayment)", NUM,
          hist=lambda j: f"={raw('cash_flow_issuance_or_reduction_of_debt_net', j)}", fc=inp(A["net_debt_issuance"]),
          unit=f"{CUR} {UNITS}")
@@ -708,9 +711,14 @@ ssb.line("div", "(-) Dividends", NUM, hist=lambda j: f"=-{ref(CF, 'div', j)}",
          fc=lambda j: (f"=IF({sref('ret_basis')}=2,MAX(0,{ref(CF, 'fcf', j)}),MAX(0,{ref(SCH, 'ni', j)}))"
                        f"*{ref('Assumptions', 'payout', j)}"),
          note="Basis switch on Assumptions: % of net income, or % of free cash flow (CFO - capex; no circularity).")
-ssb.line("bb", "(-) Share buybacks", NUM, hist=lambda j: f"=-{ref(CF, 'bb', j)}",
+ssb.line("bb_tgt", "  Buybacks at the assumed rate", NUM,
          fc=lambda j: (f"=IF({sref('ret_basis')}=2,MAX(0,{ref(CF, 'fcf', j)}),MAX(0,{ref(SCH, 'ni', j)}))"
                        f"*{ref('Assumptions', 'bb_pct', j)}"))
+ssb.line("bb", "(-) Share buybacks", NUM, hist=lambda j: f"=-{ref(CF, 'bb', j)}",
+         fc=lambda j: (f"=MIN({ref(SCH, 'bb_tgt', j)},MAX(0,{ref(SCH, 'cash_beg', j)}+{ref(CF, 'cfo', j)}+{ref(CF, 'cfi', j)}"
+                       f"+{ref(CF, 'debt', j)}+{ref(CF, 'lease_rep', j)}-{ref(SCH, 'div', j)}))"),
+         note="Forecast: the assumed rate, capped at the cash left after operations, investing, debt, leases and dividends, "
+              "so buybacks never drive cash below zero (no circularity: none of those depend on buybacks).")
 ssb.line("eq_iss", "(+) Share issuance", NUM, hist=lambda j: f"={ref(CF, 'iss', j)}")
 ssb.line("eq_oth", "(+/-) Other (SBC, OCI, FX; history only)", NUM,
          hist=lambda j: (None if j == 0 else f"={ref(SCH, 'eq_end', j)}-{ref(SCH, 'eq_beg', j)}-{ref(SCH, 'ni', j)}"
@@ -752,6 +760,25 @@ dsb.scalar("b_lease_on", "Subtract lease liabilities? (1 = yes, 0 = no)", M.get(
 dsb.scalar("b_mi", "(-) Minority interest", B.get("minority_interest", 0), NUM, source=f"Distilla, {B['as_of']}")
 dsb.scalar("target", "Consensus target price (memo)", MK.get("target_price") or 0, PS, unit=MK.get("price_currency", CUR),
            source="Distilla stock_price.sell_side_target_price")
+if FA_ON:
+    dsb.blank()
+    dsb.hdr(f"Finance arm valued separately - {FA.get('name', '')}")
+    dsb.scalar("fa_on", "Value the finance arm separately? (1 = yes, 0 = consolidated DCF)", 1, '0', key_fill=True,
+               source=f"Segment assets {FA.get('assets', 0):,.0f} = {FA.get('asset_share', 0):.0%} of total assets")
+    dsb.scalar("fa_profit", "Finance arm pre-tax profit, last year", FA.get("profit", 0), NUM,
+               source=f"{FA.get('segment_source', 'Distilla by_segment_financials')} ({FA.get('period') or 'last year'})")
+    dsb.scalar("fa_pct", "  as % of consolidated revenue (held in the forecast)", None, PCT2)
+    dsb.scalar("fa_rec_share", "Finance receivables share of current receivables", round(FA.get("rec_share", 0), 4), PCT,
+               source=FA.get("rec_share_basis"))
+    dsb.scalar("fa_debt", "Finance arm debt (out of the bridge)", round(FA.get("debt", 0), 1), NUM, source=FA.get("debt_basis"))
+    dsb.scalar("fa_lti", "Long-term finance receivables inside LT investments", round(FA.get("lt_rec", 0), 1), NUM,
+               source=FA.get("lt_rec_basis"))
+    dsb.scalar("fa_eq", "Finance arm book equity", round(FA.get("equity", 0), 1), NUM, source=FA.get("equity_basis"))
+    dsb.scalar("fa_roe", "Finance arm after-tax ROE", None, PCT, source="Pre-tax profit x (1 - tax rate) / book equity")
+    dsb.scalar("fa_pb_ovr", "Your P/B for the finance arm (optional; blank = justified P/B)", FA.get("pb_override"), DEC)
+    dsb.scalar("fa_pb", "Finance arm P/B used", None, DEC, bold=True,
+               source="Justified P/B = (ROE - g) / (cost of equity - g), bounded 0.5-2.5x; 1.0x if ROE or equity is missing")
+    dsb.scalar("fa_val", "Finance arm value (added in the bridge)", None, NUM, bold=True)
 dsb.blank()
 dsb.hdr("WACC build")
 dsb.scalar("rf", "Risk-free rate", W["rf"], PCT2, source=W.get("rf_source"), key_fill=True)
@@ -787,15 +814,32 @@ dsb.line("start", "Cash flows counted from", DATE, fc=lambda j: f"=MAX({sref('bd
 dsb.line("frac", "Fraction of year included", DEC,
          fc=lambda j: f"=MAX(0,MIN(1,({ref(DCF, 'fye', j)}-{ref(DCF, 'start', j)})/({ref(DCF, 'fye', j)}-{ref(DCF, 'fye', prev(j))})))")
 dsb.line("ebit", "EBIT", NUM, fc=lambda j: f"={ref(IS, 'ebit', j)}")
-dsb.line("tax", "(-) Taxes on EBIT", NUM, fc=lambda j: f"=-{ref(DCF, 'ebit', j)}*{ref('Assumptions', 'tax', j)}")
-dsb.line("nopat", "NOPAT", NUM, bold=True, top=True, fc=lambda j: f"={ref(DCF, 'ebit', j)}+{ref(DCF, 'tax', j)}")
+if FA_ON:
+    dsb.line("fa_ebit", "(-) Finance arm pre-tax profit (valued separately)", NUM,
+             fc=lambda j: f"=-{ref(IS, 'rev', j)}*{sref('fa_pct')}*{sref('fa_on')}")
+    ebit_in = lambda j: f"({ref(DCF, 'ebit', j)}+{ref(DCF, 'fa_ebit', j)})"  # noqa: E731
+else:
+    ebit_in = lambda j: ref(DCF, 'ebit', j)  # noqa: E731
+dsb.line("tax", "(-) Taxes on EBIT", NUM, fc=lambda j: f"=-{ebit_in(j)}*{ref('Assumptions', 'tax', j)}")
+dsb.line("nopat", "NOPAT", NUM, bold=True, top=True, fc=lambda j: f"={ebit_in(j)}+{ref(DCF, 'tax', j)}")
 dsb.line("da", "(+) D&A", NUM, fc=lambda j: f"={ref(IS, 'da', j)}")
 dsb.line("capex", "(-) Capex", NUM, fc=lambda j: f"=-{ref(SCH, 'capex', j)}")
 dsb.line("dnwc", "(-) Increase in NWC", NUM, fc=lambda j: f"=-{ref(SCH, 'dnwc', j)}")
 dsb.line("leasecap", "(-) New leases (IFRS 16 right-of-use additions)", NUM, fc=lambda j: f"=-{ref(SCH, 'lease_add', j)}",
          note="New leases are economically capex financed by lease debt. Existing leases are covered by subtracting the lease liability in the bridge.")
+if FA_ON:
+    dsb.line("fa_rec", "(+) Finance receivables growth (funded by finance-arm debt)", NUM,
+             fc=lambda j: f"=({ref(BS, 'rec', j)}-{ref(BS, 'rec', prev(j))})*{sref('fa_rec_share')}*{sref('fa_on')}",
+             note="Current finance receivables grow with revenue inside working capital; the finance arm funds them with its own debt, "
+                  "which is out of the bridge, so their growth comes out of the industrial cash flow.")
+fa_rec_term = (lambda j: f"+{ref(DCF, 'fa_rec', j)}") if FA_ON else (lambda j: "")  # noqa: E731
 dsb.line("ufcf", "Unlevered free cash flow", NUM, bold=True, top=True,
-         fc=lambda j: f"={ref(DCF, 'nopat', j)}+{ref(DCF, 'da', j)}+{ref(DCF, 'capex', j)}+{ref(DCF, 'dnwc', j)}+{ref(DCF, 'leasecap', j)}")
+         fc=lambda j: (f"={ref(DCF, 'nopat', j)}+{ref(DCF, 'da', j)}+{ref(DCF, 'capex', j)}+{ref(DCF, 'dnwc', j)}"
+                       f"+{ref(DCF, 'leasecap', j)}{fa_rec_term(j)}"))
+dsb.line("ebitda_v", "EBITDA for multiples" + (" (industrial)" if FA_ON else ""), NUM,
+         fc=lambda j: f"={ref(IS, 'ebitda', j)}" + (f"+{ref(DCF, 'fa_ebit', j)}" if FA_ON else ""),
+         hist=lambda j: (f"={ref(IS, 'ebitda', j)}" + (f"-{sref('fa_profit')}*{sref('fa_on')}" if FA_ON else ""))
+         if j == NH - 1 else None)
 dsb.line("rest", "  of which: D&A - capex - NWC - new leases", NUM, fc=lambda j: f"={ref(DCF, 'ufcf', j)}-{ref(DCF, 'nopat', j)}")
 dsb.line("ufcf_in", "UFCF counted (x fraction)", NUM, fc=lambda j: f"={ref(DCF, 'ufcf', j)}*{ref(DCF, 'frac', j)}")
 dsb.line("tt", "Discount period (years from valuation date)", YRS,
@@ -812,7 +856,8 @@ dsb.scalar("tv_x", "Terminal value - your exit multiple (if entered)", None, NUM
 dsb.scalar("tv", "Terminal value - selected", None, NUM, bold=True)
 dsb.scalar("pv_tv", "PV of terminal value", None, NUM)
 dsb.scalar("ev", "Enterprise value", None, NUM, bold=True)
-dsb.scalar("bridge", "Net bridge adjustments (cash + investments - debt - leases - MI)", None, NUM)
+dsb.scalar("bridge", "Net bridge adjustments (cash + investments - debt - leases - MI"
+           + (" + finance arm)" if FA_ON else ")"), None, NUM)
 dsb.scalar("eqv", "Equity value", None, NUM, bold=True)
 dsb.scalar("vps_rep", f"Equity value per share ({CUR})", None, PS)
 dsb.scalar("vps", f"Equity value per share ({MK.get('price_currency', CUR)})", None, PS, bold=True, key_fill=True)
@@ -828,6 +873,11 @@ dsb.scalar("mkt_mult", "Today's market EV / FY1 EBITDA (reference only)", None, 
            source="Today's multiple prices today's growth; applying it to a mature terminal year is inconsistent")
 dsb.scalar("impl_g_mkt", "Perpetual growth implied if today's multiple held at the terminal year", None, PCT2)
 dsb.scalar("vps_x", "Value per share at your exit multiple (only if entered)", None, PS)
+_mh_src = (f"Distilla valuation_multiple {MH.get('type')} since {MH.get('from')}, n = {MH.get('n')} "
+           "(vendor EV, consolidated)" if MH.get("avg") is not None else "Not retrieved")
+dsb.scalar("mh_avg", "Own-history NTM EV/EBITDA - average", float(MH["avg"]) if MH.get("avg") is not None else None, MULT, source=_mh_src)
+dsb.scalar("mh_min", "Own-history NTM EV/EBITDA - low", float(MH["min"]) if MH.get("min") is not None else None, MULT)
+dsb.scalar("mh_max", "Own-history NTM EV/EBITDA - high", float(MH["max"]) if MH.get("max") is not None else None, MULT)
 dsb.blank()
 dsb.hdr("Reverse DCF: what today's share price implies")
 dsb.scalar("ev_req", "Enterprise value implied by the share price", None, NUM)
@@ -850,12 +900,15 @@ def fill_dcf_formulas():
     CURRENT[0] = DCF
     f0, fN = NH, LAST
     uN = ref(DCF, "ufcf", fN)
-    ebitdaN = ref(IS, "ebitda", fN)
+    fa_debt_term = f"-{sref('fa_debt')}*{sref('fa_on')}" if FA_ON else ""
+    fa_lti_term = f"-{sref('fa_lti')}*{sref('fa_on')}" if FA_ON else ""
+    fa_val_term = f"+{sref('fa_val')}*{sref('fa_on')}" if FA_ON else ""
+    ebitdaN = ref(DCF, "ebitda_v", fN)
     formulas = {
         "ke": f"={sref('rf')}+{sref('beta')}*{sref('erp')}+{sref('crp')}",
         "kd_at": f"={sref('kd')}*(1-{sref('t')})",
         "mcap": f"={sref('price')}*{sref('fx')}*{sref('shares')}",
-        "dtot": f"={sref('b_debt')}+{sref('b_lease')}*{sref('b_lease_on')}",
+        "dtot": f"={sref('b_debt')}{fa_debt_term}+{sref('b_lease')}*{sref('b_lease_on')}",
         "wd": f"=IF({sref('tgt_wd')}=\"\",{sref('dtot')}/({sref('dtot')}+{sref('mcap')}),{sref('tgt_wd')})",
         "we": f"=1-{sref('wd')}",
         "wacc": f"={sref('we')}*{sref('ke')}+{sref('wd')}*{sref('kd_at')}",
@@ -866,8 +919,8 @@ def fill_dcf_formulas():
         "tv": f"=IF(AND({sref('tv_method')}=2,ISNUMBER({sref('mult')})),{sref('tv_x')},{sref('tv_g')})",
         "pv_tv": f"={sref('tv')}/(1+{sref('wacc')})^{sref('tN')}",
         "ev": f"={sref('sum_pv')}+{sref('pv_tv')}",
-        "bridge": (f"={sref('b_cash')}+{sref('b_lti')}*{sref('b_lti_on')}-{sref('b_debt')}"
-                   f"-{sref('b_lease')}*{sref('b_lease_on')}-{sref('b_mi')}"),
+        "bridge": (f"={sref('b_cash')}+({sref('b_lti')}{fa_lti_term})*{sref('b_lti_on')}-({sref('b_debt')}{fa_debt_term})"
+                   f"-{sref('b_lease')}*{sref('b_lease_on')}-{sref('b_mi')}{fa_val_term}"),
         "eqv": f"={sref('ev')}+{sref('bridge')}",
         "vps_rep": f"=IFERROR({sref('eqv')}/{sref('shares')},0)",
         "vps": f"=IFERROR({sref('vps_rep')}/{sref('fx')},0)",
@@ -875,7 +928,7 @@ def fill_dcf_formulas():
         "upside": f"=IFERROR({sref('vps')}/{sref('px')}-1,0)",
         "tv_pct": f"=IFERROR({sref('pv_tv')}/{sref('ev')},0)",
         "impl_mult": f"=IFERROR({sref('tv_g')}/{ebitdaN},0)",
-        "mkt_mult": f"=IFERROR(({sref('mcap')}-{sref('bridge')})/{ref(IS, 'ebitda', f0)},0)",
+        "mkt_mult": f"=IFERROR(({sref('mcap')}-{sref('bridge')})/{ref(DCF, 'ebitda_v', f0)},0)",
         "impl_g_mkt": (f"=IFERROR(({ebitdaN}*{sref('mkt_mult')}*{sref('wacc')}-{uN})/({ebitdaN}*{sref('mkt_mult')}+{uN}),0)"),
         "ev_req": f"={sref('mcap')}-{sref('bridge')}",
         # If the price is below the PV of the forecast years alone, no terminal growth rate solves it
@@ -903,6 +956,15 @@ def fill_dcf_formulas():
                   f"+{sref('bridge')})/{sref('shares')}/{sref('fx')},\"n/a\")"),
         "vs_target": f"=IFERROR({sref('vps')}/{sref('target')}-1,0)",
     }
+    if FA_ON:
+        lastrev = ref(IS, 'rev', NH - 1)
+        formulas.update({
+            "fa_pct": f"=IFERROR({sref('fa_profit')}/{lastrev},0)",
+            "fa_roe": f"=IFERROR({sref('fa_profit')}*(1-{sref('t')})/{sref('fa_eq')},\"n/a\")",
+            "fa_pb": (f"=IF(ISNUMBER({sref('fa_pb_ovr')}),{sref('fa_pb_ovr')},IF(AND(ISNUMBER({sref('fa_roe')}),{sref('fa_eq')}>0),"
+                      f"MAX(0.5,MIN(2.5,({sref('fa_roe')}-{sref('g')})/({sref('ke')}-{sref('g')}))),1))"),
+            "fa_val": f"={sref('fa_eq')}*{sref('fa_pb')}",
+        })
     for kind, r, it in dsb.items:
         if kind == "scalar" and it["key"] in formulas:
             it["value"] = formulas[it["key"]]
@@ -1001,6 +1063,8 @@ chk.line("ppe_rev", "PP&E / revenue", PCT, hist=lambda j: f"={ref(SCH, 'ppe_rev'
 chk.line("cash_rev", "Cash / revenue", PCT, hist=lambda j: f"=IFERROR({ref(BS, 'cash', j)}/{ref(IS, 'rev', j)},0)",
          fc=lambda j: f"=IFERROR({ref(BS, 'cash', j)}/{ref(IS, 'rev', j)},0)")
 chk.line("opex_neg", "Operating expenses negative? (1 = yes)", '0', fc=lambda j: f"=IF({ref(IS, 'opex', j)}<0,1,0)")
+chk.line("bb_cap", "Buybacks capped by available cash? (1 = yes)", '0',
+         fc=lambda j: f"=IF({ref(SCH, 'bb', j)}<{ref(SCH, 'bb_tgt', j)}-0.5,1,0)")
 chk.blank()
 chk.hdr("Summary")
 chk.scalar("c_bs", "Max absolute balance sheet difference", None, NUM)
@@ -1013,6 +1077,9 @@ chk.scalar("c_ppe", "Terminal PP&E / revenue within range of last actual", None,
 chk.scalar("c_cashb", "No excess cash build-up", None, '@')
 chk.scalar("c_opex", "Operating expenses never negative", None, '@')
 chk.scalar("c_eqv", "Equity value positive", None, '@')
+chk.scalar("c_bbcap", "Years with buybacks capped by available cash (information)", None, '0')
+if FA_ON:
+    chk.scalar("c_fa", "Finance arm inputs within the consolidated figures", None, '@')
 chk.scalar("c_reinv", "Terminal growth consistent with reinvestment (RONIC >= WACC; no large 'free' growth)", None, '@')
 chk.scalar("c_all", "OVERALL", None, '@', bold=True, key_fill=True)
 
@@ -1035,6 +1102,7 @@ def fill_checks():
         "c_cashb": f"=IF(AND({cashN}>{cb}*{cash0},{cashN}>0.5),\"REVIEW\",\"OK\")",
         "c_opex": f"=IF(SUM({rng(CHK, 'opex_neg', NH, LAST)})=0,\"OK\",\"FAIL\")",
         "c_eqv": f"=IF({sref('eqv')}>0,\"OK\",\"REVIEW\")",
+        "c_bbcap": f"=SUM({rng(CHK, 'bb_cap', NH, LAST)})",
         "c_reinv": (f"=IF(OR({sref('g')}<=0,{ref(DCF, 'nopat', LAST)}<=0),\"OK\",IF({sref('reinv_rate')}<-0.1,\"REVIEW\","
                     f"IF({sref('reinv_rate')}<=0,\"OK\",IF({sref('g')}/{sref('reinv_rate')}<{sref('wacc')},\"REVIEW\",\"OK\"))))"),
         # hard failures = the model is wrong; warnings = the model is right but an assumption needs a look
@@ -1043,6 +1111,10 @@ def fill_checks():
                   f"{sref('c_ppe')}=\"OK\",{sref('c_cashb')}=\"OK\",{sref('c_eqv')}=\"OK\",{sref('c_reinv')}=\"OK\"),\"ALL CHECKS PASS\",\"PASS WITH WARNINGS\"),"
                   f"\"FAIL - REVIEW\")"),
     }
+    if FA_ON:
+        f["c_fa"] = (f"=IF(AND({sref('fa_debt')}<={sref('b_debt')},{sref('fa_lti')}<={sref('b_lti')},{sref('fa_eq')}>0,"
+                     f"{sref('fa_rec_share')}<=1),\"OK\",\"REVIEW\")")
+        f["c_all"] = f["c_all"].replace(f"{sref('c_reinv')}=\"OK\")", f"{sref('c_reinv')}=\"OK\",{sref('c_fa')}=\"OK\")")
     for kind, r, it in chk.items:
         if kind == "scalar" and it["key"] in f:
             it["value"] = f[it["key"]]
@@ -1072,6 +1144,11 @@ sm.scalar("s_greq", "Share price implies perpetual growth of", None, PCT2, bold=
 sm.scalar("s_mreq", "... or a terminal EBIT margin of", None, PCT, bold=True)
 sm.scalar("s_im", "Terminal EV/EBITDA implied by the valuation", None, MULT)
 sm.scalar("s_mkt", "Today's market EV/EBITDA (reference)", None, MULT)
+if FA_ON:
+    sm.scalar("s_fa", f"Finance arm value in the bridge ({FA.get('name', '')})", None, NUM, unit=f"{CUR} {UNITS}")
+    sm.scalar("s_fapb", "  at P/B (justified unless overridden; 1.0x = default)", None, DEC)
+if MH.get("avg") is not None:
+    sm.scalar("s_mh", "Own 3-year NTM EV/EBITDA average (reference)", None, MULT)
 sm.scalar("s_chk", "Model checks", None, '@', bold=True)
 sm.blank()
 sm.hdr("Forecast snapshot")
@@ -1146,6 +1223,10 @@ def fill_summary():
          "s_vg": f"={sref('vps_g')}", "s_greq": f"={sref('g_req')}", "s_mreq": f"={sref('m_req')}", "s_im": f"={sref('impl_mult')}",
          "s_mkt": f"={sref('mkt_mult')}",
          "s_chk": f"={sref('c_all')}"}
+    if FA_ON:
+        f.update({"s_fa": f"={sref('fa_val')}*{sref('fa_on')}", "s_fapb": f"={sref('fa_pb')}"})
+    if MH.get("avg") is not None:
+        f["s_mh"] = f"={sref('mh_avg')}"
     for kind, r, it in sm.items:
         if kind == "scalar" and it["key"] in f:
             it["value"] = f[it["key"]]

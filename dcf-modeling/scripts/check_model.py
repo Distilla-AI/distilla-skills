@@ -131,8 +131,12 @@ da = series("DCF", "(+) D&A")[nh:n]
 cx = series("DCF", "(-) Capex")[nh:n]
 dn = series("DCF", "(-) Increase in NWC")[nh:n]
 lc = series("DCF", "(-) New leases (IFRS 16 right-of-use additions)")[nh:n]
+try:  # present only when a finance arm is valued separately
+    fr = series("DCF", "(+) Finance receivables growth (funded by finance-arm debt)")[nh:n]
+except KeyError:
+    fr = [0] * len(ufcf)
 for i, u in enumerate(ufcf):
-    if abs(u - (nopat[i] + da[i] + cx[i] + dn[i] + (lc[i] or 0))) > 1:
+    if abs(u - (nopat[i] + da[i] + cx[i] + dn[i] + (lc[i] or 0) + (fr[i] or 0))) > 1:
         hard.append(f"UFCF does not recompute in {hdr[nh + i]}")
 pv = series("DCF", "PV of UFCF")[nh:n]
 ev = scalar("DCF", "Enterprise value")
@@ -220,6 +224,18 @@ for lab, kind in rows_:
     else:
         out = {"pct": f"{v:.2%}", "x": f"{v:.1f}x", "dec": f"{v:.2f}", "num": f"{v:,.2f}"}[kind]
     print(f"{lab[:66]:66} {out:>16}")
+try:
+    fav = scalar("DCF", "Finance arm value (added in the bridge)")
+    print(f"{'Finance arm value (added in the bridge)':66} {fav:>16,.2f}  at P/B "
+          f"{scalar('DCF', 'Finance arm P/B used'):.2f}x")
+except KeyError:
+    pass
+try:
+    capped = scalar("Checks", "Years with buybacks capped by available cash (information)")
+    if capped:
+        print(f"Note: buybacks capped by available cash in {capped:.0f} forecast year(s)")
+except KeyError:
+    pass
 print(f"Workbook Checks tab: {scalar('Checks', 'OVERALL')}")
 print("=" * 64)
 for w in warn:
