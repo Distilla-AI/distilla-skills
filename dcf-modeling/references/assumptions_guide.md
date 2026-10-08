@@ -149,6 +149,12 @@ Raise only the ones that apply. Lead with the one that moves value most.
    `corporate_basis` and cite it. Size it from what continues: the company's reported corporate /
    unallocated line for the last year (corporate costs, without the stopped item and one-off charges) as a
    % of revenue, plus the basis gap (GM: −0.6% corporate + the 1.8% gap = −2.4%).
+17. **Near-term company check.** When it flags a gap, say which is likelier: consensus not yet updated
+   after the results (check its snapshot date), or a company that guides conservatively (its record). Leave
+   the model on consensus unless the user moves it. The record comes from the company's *initial* guidance
+   for each period, not a raised one; profit guidance on an adjusted basis is compared with consensus EBIT,
+   which usually follows the same basis. In the backtest, profit was a coin toss for both sources — keep
+   profit ranges wide.
 
 ## WACC sourcing order (user choice: web search, then defaults)
 

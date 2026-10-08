@@ -504,6 +504,23 @@ if "sales_mean" in CS:
              fc=lambda j: (f"=IFERROR({ref('Income Statement', 'rev', j)}/{ref('Assumptions', 'c_sales_mean', j)}-1,0)"
                            if FP[fc_idx(j)] in CP else None))
 
+# near-term company check (memo; never an input): guidance x the company's record against its guidance vs consensus
+CCK = M.get("company_check") or {}
+if CCK.get("lines") or CCK.get("none"):
+    asb.hdr("Near-term company check - memo, not linked (guidance x the company's record vs consensus)")
+    if CCK.get("none"):
+        asb.text("Not applicable: " + (CCK.get("reason") or "reason not recorded"))
+    else:
+        asb.text(f"Period {CCK.get('period_label', '')}; guidance: {CCK.get('source', '')} ({CCK.get('date', '')})")
+        for m_, l_ in CCK["lines"].items():
+            lab_ = "Revenue" if m_ == "revenue" else "Operating profit"
+            asb.text(f"{lab_}: guidance {l_['guide_low']:,.0f}-{l_['guide_high']:,.0f}; check estimate {l_['estimate']:,.0f} "
+                     f"(range {l_['low']:,.0f}-{l_['high']:,.0f}); consensus "
+                     + (f"{l_['consensus']:,.0f}, gap {l_['gap']:+.1%}" if l_.get("consensus") else "n/a")
+                     + f" - {l_['record']}")
+        if CCK.get("note"):
+            asb.text(CCK["note"])
+
 # ---------------------------------------------------------------- Drivers tab
 # Segment revenue = last year x (1 + volume) x (1 + price), or units x revenue per unit where a unit series
 # exists. Each driver has Base / Bull / Bear inputs and an active-scenario line; "Other / eliminations"

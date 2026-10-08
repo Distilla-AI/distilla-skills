@@ -277,6 +277,12 @@ year, add the cell for that year (or the full-year columns of the fourth-quarter
                                       "basis":"<guidance / broker view (broker, title, date) / history>",
                                       "as_of":"YYYY-MM-DD"}}},   // as_of = date of the newest source; segments.py output + anchors
  "broker_discount_rates": [{"broker": "", "date": "YYYY-MM-DD", "rate": 0.0, "basis": "WACC | cost of equity"}],
+ "company_check": {"period": "YYYY-MM-DD", "period_label": "FY2026 | Q4 FY2026",   // period end; or {"none": true, "reason": ""}
+                   "guidance": {"revenue_low": 0, "revenue_high": 0, "op_low": null, "op_high": null,
+                                "op_basis": "GAAP | adjusted", "source": "", "date": "YYYY-MM-DD"},
+                   "track_record": [{"period": "", "metric": "revenue | op", "guide_low": 0, "guide_high": 0,
+                                     "actual": 0, "source": ""}],   // at least 2 past periods, same basis
+                   "consensus": {"revenue": null, "op": null, "date": ""}},   // needed for a quarter; FY periods default to the model's consensus
  "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0,
                       "basis":"<vendor EV with or without a finance arm's debt, from the spot-check>"},
  "finance_arm": {"name":"","period":"YYYY-MM-DD","segment_source":"","revenue":0,"profit_pretax":0,"assets":0,

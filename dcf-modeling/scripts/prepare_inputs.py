@@ -146,6 +146,87 @@ def add_years(date_str, n):
 
 
 # ---------------------------------------------------------------- revenue drivers
+def company_check(CC, C, cons_periods, flags):
+    """Near-term company check: the company's own numeric guidance for one period, adjusted by its record
+    against its own guidance, beside consensus for the same period. A cross-check, never a model input.
+
+    Backtest (16 companies, Oct 2026): company-sourced next-period revenue was closer than consensus in 11 of
+    15 cases but about as accurate on average; profit was a draw. It wins where the company guides
+    explicitly AND has a steady record against its guidance (Micron, New Oriental, NRI), and loses on lumpy
+    businesses and guidance given only in words - so it runs only on explicit numeric guidance.
+
+    CC = raw.json["company_check"]: {"period": "YYYY-MM-DD" (period end), "period_label": "",
+      "guidance": {"revenue_low", "revenue_high", "op_low", "op_high", "op_basis", "source", "date"},
+      "track_record": [{"period": "", "metric": "revenue" | "op", "guide_low", "guide_high", "actual", "source"}],
+      "consensus": {"revenue", "op", "date"} (optional; FY periods default to the consensus used in the model)}
+    or {"none": true, "reason": "..."}.
+    """
+    if not CC:
+        flags.append("COMPANY CHECK not run: record raw.json['company_check'] - the company's numeric guidance with its "
+                     "record against past guidance - or {'none': true, 'reason': ...} (no numeric guidance, guidance only "
+                     "in words, a lumpy business).")
+        return {}
+    if CC.get("none"):
+        flags.append(f"COMPANY CHECK: not applicable - {CC.get('reason', 'reason not recorded')}.")
+        return {"none": True, "reason": CC.get("reason", "")}
+    G = CC.get("guidance") or {}
+    end = str(CC.get("period") or "")[:10]
+    out = {"period": end, "period_label": CC.get("period_label") or end[:4], "source": G.get("source", ""),
+           "date": G.get("date", ""), "op_basis": G.get("op_basis", ""), "lines": {}}
+    cons = dict(CC.get("consensus") or {})
+    if end and "revenue" not in cons:  # a fiscal-year period the model's consensus covers
+        hit = next((q for q in cons_periods if abs((dt.date.fromisoformat(q) - dt.date.fromisoformat(end)).days) <= 20), None)
+        if hit:
+            cons.setdefault("revenue", (C.get("sales_mean") or {}).get(hit))
+            cons.setdefault("op", (C.get("ebit_mean") or {}).get(hit))
+            cons.setdefault("date", "the consensus snapshot in the model")
+    for metric, lab, band, cap in (("revenue", "Revenue", 0.05, 0.10), ("op", "Operating profit", 0.10, 0.10)):
+        lo, hi = num(G.get(metric + "_low")), num(G.get(metric + "_high"))
+        if lo is None and hi is None:
+            continue
+        lo, hi = (lo if lo is not None else hi), (hi if hi is not None else lo)
+        mid = (lo + hi) / 2
+        ratios = []
+        for r in CC.get("track_record") or []:
+            gl, gh, act = num(r.get("guide_low")), num(r.get("guide_high")), num(r.get("actual"))
+            if r.get("metric", "revenue") == metric and act is not None and (gl is not None or gh is not None):
+                gm = ((gl if gl is not None else gh) + (gh if gh is not None else gl)) / 2
+                if gm:
+                    ratios.append(act / gm)
+        # Half the company's typical beat (or miss) is applied, capped at +/-10%: big beats do not fully repeat
+        # (Micron Q4 FY26: a full 1.24x record would have given 60.0bn against 54.2bn actual; half gave 56.0bn).
+        if len(ratios) >= 2:
+            srt = sorted(ratios)
+            full = srt[len(srt) // 2] if len(srt) % 2 else (srt[len(srt) // 2 - 1] + srt[len(srt) // 2]) / 2
+            f_ = clamp(1 + (full - 1) / 2, 1 - cap, 1 + cap)
+            rec = (f"median actual / guided midpoint {full:.3f} over {len(ratios)} periods; half applied ({f_:.3f})")
+        else:
+            full, f_, rec = 1.0, 1.0, "fewer than 2 periods of track record - guidance midpoint taken as is"
+        est = mid * f_
+        # range: from the plain guidance to the full record, widened to a floor (profit wider than revenue)
+        w = 0.02 if metric == "revenue" else 0.06
+        line = {"guide_low": lo, "guide_high": hi, "factor": round(f_, 4), "record": rec, "estimate": round(est, 2),
+                "low": round(min(lo * min(1.0, full), est * (1 - w)), 2),
+                "high": round(max(hi * max(1.0, full), est * (1 + w)), 2),
+                "consensus": num(cons.get(metric)), "gap": None}
+        if line["consensus"]:
+            line["gap"] = round(est / line["consensus"] - 1, 4)
+            if abs(line["gap"]) > band:
+                flags.append(f"COMPANY CHECK ({out['period_label']} {lab.lower()}): guidance {lo:,.0f}-{hi:,.0f} x the company's "
+                             f"record ({rec}) gives {est:,.0f}, {line['gap']:+.1%} vs consensus {line['consensus']:,.0f} "
+                             f"({cons.get('date', '')}). Consensus may be stale or conservative - say so at the checkpoint; "
+                             "the model stays on consensus unless the user moves it.")
+        out["lines"][metric] = line
+    if not out["lines"]:
+        flags.append("COMPANY CHECK: no numeric guidance recorded for revenue or operating profit - record it, or "
+                     "{'none': true, 'reason': ...}.")
+        return {}
+    if out["op_basis"] and "op" in out["lines"]:
+        out["note"] = (f"Operating profit on the company's {out['op_basis']} basis; consensus EBIT usually follows the "
+                       "company's basis, the model's EBIT is on Distilla's (see the basis gap).")
+    return out
+
+
 def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anchors, idx_of, flags, ebit=None):
     """Segment revenue drivers for the Drivers tab, or None (single growth rate) with the reason flagged.
 
@@ -592,6 +673,7 @@ def main():
     ncons = len(cons_periods)
     if ncons == 0:
         flags.append("NO CONSENSUS: forecast drafted from historical trends only.")
+    ccheck = company_check(raw.get("company_check"), C, cons_periods, flags)
 
     # ---------- WACC inputs (live values from raw['wacc'] if the assistant found them)
     W = raw.get("wacc", {})
@@ -1327,6 +1409,7 @@ def main():
         "reference_points": reference_points,
         "finance_arm": fa or {},
         "drivers": drivers or {},
+        "company_check": ccheck,
         "recurring_charges": {"pct_rev": round(charges_pct, 4), "source": rc.get("source", "")} if charges_pct else {},
         "multiple_history": raw.get("multiple_history") or {},
         "basis_gap": {"none": True, "reason": rc.get("reason", "")} if rc.get("none") else {},
@@ -1444,6 +1527,12 @@ def main():
         for sc in ("base", "bull", "bear"):
             b = basis[drv][sc]
             print(f"  {drv:15} {sc:5} [{b['type']}] {b['text']}")
+    if ccheck.get("lines"):
+        print(f"\nNear-term company check ({ccheck['period_label']}; guidance {ccheck.get('source', '')}, {ccheck.get('date', '')}):")
+        for m_, l_ in ccheck["lines"].items():
+            print(f"  {'Revenue' if m_ == 'revenue' else 'Op profit':10} guide {l_['guide_low']:,.0f}-{l_['guide_high']:,.0f} -> "
+                  f"check {l_['estimate']:,.0f} ({l_['low']:,.0f}-{l_['high']:,.0f}); consensus "
+                  + (f"{l_['consensus']:,.0f}, gap {l_['gap']:+.1%}" if l_.get("consensus") else "n/a") + f"  [{l_['record']}]")
     if flags:
         print("\nFLAGS:")
         for f in flags:

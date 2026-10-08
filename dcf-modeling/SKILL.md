@@ -349,6 +349,16 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
    unanchored lines shift by a common amount so EBIT still matches consensus. After consensus an
    unanchored line moves in proportion to the company-level margin path (anchors and peak guard), so the
    company margin is the mix result; a held line keeps its margin flat.
+6. **Near-term company check** (a cross-check, never an input): when the company gives explicit numeric
+   guidance for revenue or operating profit — the current fiscal year, or the next quarter where that is all
+   it guides (`guidances` KU, earnings-announcement events, results releases) — record it in
+   `raw.json["company_check"]` with its record against its own guidance: guided range and actual for at least
+   2 past periods, same metric and basis. The script applies half the company's typical beat or miss (capped
+   at ±10%) and compares the result with consensus for the same period; a gap over 5% (revenue) or 10%
+   (profit) is flagged. Guidance only in words ("below normal seasonality"), EPS-only guidance, no guidance,
+   or a lumpy business (property sales, project milestones) → `{"none": true, "reason": ...}`. A backtest on
+   16 companies found this view about as accurate as consensus overall and better where guidance is explicit
+   and the record steady — so it flags a possibly stale consensus; it never replaces it.
 Rerun prepare_inputs.py; evidence, anchors and return policy live in raw.json, so nothing is lost.
 
 ### 5. Checkpoint — stop and get confirmation
@@ -360,6 +370,8 @@ draft value. Then present, compactly, in chat:
   other / eliminations line, and each driver's basis (guidance / broker view / history / calibrated /
   formula, no evidence). With segment margins: each line's base margin path, the corporate line, and the
   mix-built company margin against the company-level path (the script flags a terminal gap over 2 points).
+- The near-term company check, when run: guidance, the record applied, the check estimate and its range
+  against consensus, and what a flagged gap may mean (consensus not yet updated, a conservative guide).
 - WACC and terminal growth, each input tagged *live* or *default*, and beside them the discount
   rates the broker notes state with the value per share at their median rate (or "none stated").
 - **Draft value per share** for base, bull and bear against the price (`check_model.py --all` prints all

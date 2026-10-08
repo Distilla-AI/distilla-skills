@@ -95,6 +95,7 @@ Spend the questions where value is sensitive or a flag fired:
 | Tax far below statutory | Tax incentives and when they expire |
 | Drivers tab on | Per segment: volume (backlog, shipments, units, capacity) and price (realization, ASP) guidance; broker summaries stating segment growth, units or ASPs - cite broker, title, date |
 | Segment margins on | Per segment: margin targets or ranges from guidance or investor days; broker summaries stating segment margins or segment profit - cite broker, title, date |
+| Near-term company check | The company's numeric revenue / operating-profit guidance for the current year or next quarter (`guidances` KU, earnings-announcement events, results releases) and, for past periods, its initial guided range against the actual - company sources only, dated |
 
 ## 4. Rules
 
