@@ -33,8 +33,8 @@ import re
 import sys
 from collections import defaultdict
 
-TOTAL_LIKE = re.compile(r"\b(total|consolidated|reportable segments|elimination|reconcil|corporate|intersegment|"
-                        r"inter-segment|adjustment)\b", re.I)
+TOTAL_LIKE = re.compile(r"\b(total|overall|consolidated|reportable segments|elimination|reconcil|corporate|intersegment|"
+                        r"inter-segment|adjustment|headquarters|unallocated)\b|^\s*(null|none|n/?a|-)?\s*$", re.I)
 REVENUE_LIKE = re.compile(r"^(?!.*\bcost of\b)(?!.*/cost\b).*(sales|revenue)", re.I)
 PROFIT_LIKE = re.compile(r"^(?!.*non-?operating)(?!.*\b(gross|net income|tax|interest (income|expense))\b).*"
                          r"(segment (profit|result)|operating (profit|income)|profit from operations|\bebita?\b|"
@@ -92,6 +92,8 @@ def main():
     ap.add_argument("--revenue", action="append")
     ap.add_argument("--units", action="append")
     ap.add_argument("--profit", action="append")
+    ap.add_argument("--hold", action="append", default=[],
+                    help="segment kept at its own trend and margin, out of the calibration (a finance segment)")
     ap.add_argument("--rename", action="append", default=[], help="OLD=NEW segment name")
     ap.add_argument("--exclude", action="append", default=[])
     ap.add_argument("--keep", action="append", default=[],
@@ -141,7 +143,8 @@ def main():
         print("Fields with full-year values (segments in each):")
         for f, segs in sorted(fields.items(), key=lambda x: -len(x[1])):
             years = sorted({k[2][:4] for k in best if k[0] == f})
-            mark = "  <- revenue candidate" if REVENUE_LIKE.search(f) else "  <- profit candidate" if PROFIT_LIKE.search(f) else ""
+            mark = ("  <- revenue candidate" if REVENUE_LIKE.search(f) else
+                    "  <- profit candidate" if PROFIT_LIKE.search(f) and not TOTAL_LIKE.search(f) else "")
             print(f"  {f!r}: {len(segs)} segments, years {years}{mark}")
             for s in sorted(segs):
                 print(f"      {'(dropped: total-like) ' if TOTAL_LIKE.search(s) else ''}{s}")
@@ -154,7 +157,6 @@ def main():
                     if tots and parts and sum(parts) > 1.5 * max(tots):
                         print(f"      ! {y}: segments sum to {sum(parts):,.0f}, {sum(parts) / max(tots):.1f}x the total "
                               f"{max(tots):,.0f} - several breakdowns overlap; pick one with --keep")
-                        break
         print("\nRe-run with --revenue \"<field>\" (and --units \"<field>\" where a unit series exists, --profit \"<field>\" "
               "where segment operating profit exists).")
         return
@@ -182,6 +184,34 @@ def main():
     if a.profit:
         profit, _ = table(a.profit)
         res.update({"profit_field": " | ".join(a.profit), "profit": {s: d for s, d in profit.items() if s in rev}})
+        # the reported segment-profit total, from the field's own total row or a "Total / Overall <field>" field
+        for y in sorted({e for d in res["profit"].values() for e in d}):
+            tots = [v for (f_, s_, e_), (_, v, _) in best.items() if e_ == y and (
+                (f_ in a.profit and TOTAL_LIKE.search(s_) and not re.search(r"corporate|unallocated|headquarters|elimination", s_, re.I))
+                or any(re.fullmatch(r"(total|overall)\s+" + re.escape(pf), f_, re.I) for pf in a.profit))]
+            ssum = sum(d.get(y, 0) for d in res["profit"].values())
+            if tots and abs(ssum - tots[0]) > 0.01 * abs(tots[0]):
+                print(f"  ! {y[:4]}: segment profit sums to {ssum:,.0f} against the reported total {tots[0]:,.0f} "
+                      f"({ssum / tots[0] - 1:+.1%}): headquarters / unallocated items, or a missing or extra line - the corporate "
+                      "line takes the difference; check the segment list if no headquarters line explains it")
+    if a.hold:
+        res["hold"] = [s for s in a.hold if s in rev]
+    # year-to-date growth: the latest interim span after the last full year against the same span a year earlier
+    last_full = max(e for d in rev.values() for e in d)
+    ytd = {}
+    for s in rev:
+        spans = [(sp, v) for (f_, s_, sp), (_, v, _) in part.items() if f_ in a.revenue and s_ == s
+                 and sp[1].isoformat() > last_full]
+        if not spans:
+            continue
+        (a1, b1), v1 = max(spans, key=lambda x: (x[0][1], (x[0][1] - x[0][0]).days))
+        prior = [v for (f_, s_, (a2, b2)), (_, v, _) in part.items() if f_ in a.revenue and s_ == s
+                 and abs((a1 - a2).days - 365) <= 20 and abs((b1 - b2).days - 365) <= 20 and v]
+        if prior:
+            ytd[s] = {"growth": round(v1 / prior[0] - 1, 6), "end": b1.isoformat(),
+                      "period": f"{a1.isoformat()} to {b1.isoformat()} vs a year earlier"}
+    if ytd:
+        res["ytd_growth"] = ytd
     years = sorted({e for d in rev.values() for e in d})
     print(f"Segments ({len(rev)}): {', '.join(rev)}")
     print(f"Years: {', '.join(y[:4] for y in years)}   unit: {unit}")
@@ -197,6 +227,8 @@ def main():
             d = res["profit"].get(s, {})
             per = "; ".join(f"{y[:4]}: {d[y] / rev[s][y]:.1%}" for y in sorted(d) if rev[s].get(y))
             print(f"  margin {s}: {per or 'no profit rows - check the label or --rename'}")
+    for s, d in (res.get("ytd_growth") or {}).items():
+        print(f"  year-to-date {s}: {d['growth']:+.1%} ({d['period']})")
     if joined:
         print(f"Joined from year-to-date + quarter: {', '.join(sorted(joined))}")
     if a.exclude:

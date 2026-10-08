@@ -215,8 +215,10 @@ that shows the finance arm separately — the 10-Q nearest the bridge date, else
 (official filings, `†`): finance receivables
 (current and long-term, as shown on the consolidated balance sheet), the finance arm's debt and
 equity (its own column after eliminations), its own cash, and assets leased to customers (inside
-PP&E). Else the Distilla leverage text; else leave them `null`. The script values the finance arm
-separately; see the field notes.
+PP&E). When only the finance arm's own filing is reachable (the parent's filing is too long to fetch),
+its figures are before eliminations: use them and say so in `bs_source`. Else the Distilla leverage text;
+else leave them `null`. The script values the finance arm separately; see the field notes. With segment
+margins on, the DCF takes the arm's forecast profit from its Drivers line (held at its own trend).
 
 **Segments (Drivers tab).** Read the latest full-year `by_segment_financials` cell (it carries about three
 years; distilla_queries.md section 5c), save the rows, run `scripts/segments.py` on them to list the
@@ -230,7 +232,10 @@ a year-to-date period with the quarter that completes it. Give `--revenue` twice
 between filings, `--rename` for segment names that differ between cells, `--exclude` for a wound-down
 segment (its history moves into other / eliminations). A unit year Distilla lacks comes from the annual
 report (`†`). Keep a finance segment — its revenue is in consolidated revenue — and list it in
-`segments.hold` so it keeps its own trend (and its margin) instead of absorbing the calibration. When segments are
+`segments.hold` (`--hold`) so it keeps its own trend (and its margin) instead of absorbing the calibration — the
+valued finance arm's line is held automatically. Hold any other line only when its own evidence sets its path
+every year (a disposal, a contract run-off). When one field holds several breakdowns (brand, product and
+channel at once), `--keep` picks one; it also filters `--profit`. When segments are
 missing, too few or do not cover the last actual year, the script says so and keeps the single growth
 rate.
 
@@ -256,7 +261,9 @@ year cited in `line_sources`, and set `basis_type`; business-segment rows still 
   comparatives in `continuing_history`; the script uses them for the reference points and the peak
   guard. If no restatement exists, say so in the flags.
 - Basic shares (`bridge.basic_shares`, `income_statement_total_shares_outstanding`): the script flags
-  diluted shares more than 3% above basic (convertible bonds counted in both shares and debt).
+  diluted shares more than 3% above basic (convertible bonds counted in both shares and debt). Fix it in the
+  draft — basic shares when the convertible is out of the money and stays in debt, else take it out of
+  debt — and show the choice at the checkpoint.
 
 **Fetching filings and pages:** only with the host's page-fetch tool. Never download pages with
 code (`curl`, Python requests) and never send the user's name, email or other details in a request.
@@ -324,7 +331,10 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
    views by product rather than by segment (DRAM / NAND / HBM bits and prices), say how you mapped them to
    segments. Where brokers disagree on a driver, that spread sets bull and bear.
    **Segment margins** (when profit history is in): anchor a line's `margin` by year where guidance or a
-   note gives it (Power & Energy margin target, a segment's cycle-low margin); in consensus years the
+   note gives it (Power & Energy margin target, a segment's cycle-low margin) — `"2029+"` for that year
+   onward, `"all"` for every scenario; anchor bull and bear only where a source gives a range, else leave
+   them calibrated to consensus high / low. Segment margins are on the company's own segment basis (guidance
+   is too): the corporate line carries the basis gap, so no basis adjustment. In consensus years the
    unanchored lines shift by a common amount so EBIT still matches consensus. After consensus an
    unanchored line moves in proportion to the company-level margin path (anchors and peak guard), so the
    company margin is the mix result; a held line keeps its margin flat.

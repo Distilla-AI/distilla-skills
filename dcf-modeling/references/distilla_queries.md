@@ -179,19 +179,26 @@ query_entity(entity="ku_cell",
            {"field":"K.name","op":"eq","value":"by_segment_financials"},
            {"field":"P.duration","op":"eq","value":"year"}],
   select=["id","P.end_date","cell_as_of_date","content"],
-  sort=[{"field":"cell_as_of_date","direction":"desc"}], limit=1)
+  sort=[{"field":"P.end_date","direction":"desc"},{"field":"cell_as_of_date","direction":"desc"}], limit=1)
 ```
-Then, if that cell carries fewer than two years, add the previous annual cells that use the same segment
+Sort on the period end, not `cell_as_of_date`: an old cell can be re-published later (Anta's FY2020 cell
+carried a later as-of date than FY2024). Then, if that cell carries fewer than two years, add the previous annual cells that use the same segment
 names (Anta: FY2023 and FY2024 cells). If its year ends before the last actual fiscal year, the same query with
 `P.duration` IN `["quarter", "half", "nine_months"]` and `P.end_date` inside that year (the year-to-date and
-last-quarter cells). Leave out cells with a different segment structure (Micron's 2020 cell: CNBU / MBU /
+last-quarter cells). Always add the current fiscal year's latest interim cell (`P.duration` IN `["quarter",
+"half", "nine_months"]`, `P.end_date` after the last actual year): with its prior-year comparative,
+segments.py writes `ytd_growth` and the first forecast year starts from it. Leave out cells with a different segment structure (Micron's 2020 cell: CNBU / MBU /
 SBU / EBU). When one field holds several breakdowns at once (Anta "Revenue": brand, product and channel),
 the listing warns that they overlap: keep one breakdown with `--keep` (repeat it per segment).
 The latest annual cell usually carries three years (Caterpillar FY2025: 2023–25). Save the rows to a file
 and run `python <skill_dir>/scripts/segments.py cells.json` to list the fields and segments, then
 `--revenue "<field>"` (plus `--units "<field>"` for a structured unit series and `--profit "<field>"` for
 segment operating profit — the listing marks profit candidates; check the margins it prints look like
-operating margins, not gross or pre-tax with interest) `--out segments.json`.
+operating margins, not gross; a finance segment's pre-tax profit is its segment profit and is right as it
+is) `--out segments.json`. Add `--hold "<segment>"` for a line that keeps its own trend and margin out of the
+calibration (the finance segment is held automatically when it is the valued finance arm). The script
+checks segment profit against the reported total; a gap is usually headquarters / unallocated items, which
+the corporate line takes. Rows named null, blank, total, overall, headquarters or unallocated are dropped.
 Totals, consolidated and elimination rows are dropped; the model shows the gap to Distilla's revenue as
 "Other / eliminations" (intersegment sales). If the latest annual cell is older than the last actual
 year, add the cell for that year (or the full-year columns of the fourth-quarter cell) to the file.
@@ -225,7 +232,7 @@ year, add the cell for that year (or the full-year columns of the fourth-quarter
  "annual":    {"<metric>": {"<end_date>": "<value as delivered>"}},   // or the raw row list
  "consensus": {"sales_mean": {"<end_date>": "<value>"}, ...},          // or the raw row list
  "market": {"price":0,"price_date":"","price_currency":"","fx_reporting_per_price":1.0,
-            "fx_source":"","target_price":0,"vendor_market_cap_usd":null /* USD m, as Distilla delivers */,"usd_per_price_currency":1.0,
+            "fx_source":"","target_price":0,"vendor_market_cap_usd":null /* USD; full USD is detected and scaled to millions */,"usd_per_price_currency":1.0,
             "splits_after_bridge":[]},
  "bridge": {"as_of":"YYYY-MM-DD","source":"","cash":0,"lt_investments":0,"st_debt":0,
             "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0,
@@ -239,10 +246,14 @@ year, add the cell for that year (or the full-year columns of the fourth-quarter
  "basis_gap": {"adjusted_by_year": {"2025": 0, "2024": 0, "2023": 0}, "source": ""},   // company's own operating profit; or {"none": true, "reason": ""}
  "continuing_history": {"income_statement_sales": {}, "income_statement_ebit_operating_income": {}, "source": ""},   // after a divestiture; omit otherwise
  "segments": {"field":"","unit":"","revenue":{"<segment>":{"YYYY-MM-DD":0}},"units":{},"units_unit":"","source":"",
+              "profit":{"<segment>":{"YYYY-MM-DD":0}},"ytd_growth":{"<segment>":{"growth":0,"end":"YYYY-MM-DD"}},  // segments.py
+              "corporate_pct":null,"corporate_basis":"",   // optional: corporate / unallocated % of revenue, with its source
               "basis_type":"business segments | product / service | market x share | geography | kpi",
               "line_sources":{"<line>":"<where each year's history came from>"},   // lines you wrote yourself
               "hold":["<finance segment>"],   // keep their own trend, out of the calibration
-              "drivers":{"<segment>":{"base":{"volume":{"2027":0.05},"price":{"2027":0.02}},"bull":{},"bear":{},  // or "market" + "share" instead of "volume"
+              "drivers":{"<segment>":{"base":{"volume":{"2027":0.05},"price":{"2027":0.02},"margin":{"2026":0.20,"2029+":0.18}},
+                                      "bull":{},"bear":{},"all":{},  // "all" = every scenario (a scenario's own entry wins);
+                                      // "2029+" = that year onward; "market" + "share" instead of "volume"
                                       "basis":"<guidance / broker view (broker, title, date) / history>"}}},   // segments.py output + anchors
  "broker_discount_rates": [{"broker": "", "date": "YYYY-MM-DD", "rate": 0.0, "basis": "WACC | cost of equity"}],
  "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0,
@@ -250,7 +261,8 @@ year, add the cell for that year (or the full-year columns of the fourth-quarter
  "finance_arm": {"name":"","period":"YYYY-MM-DD","segment_source":"","revenue":0,"profit_pretax":0,"assets":0,
                  "st_receivables":null,"lt_receivables":null,"debt":null,"equity":null,"cash":null,
                  "leased_assets":null,"bs_source":"",
-                 "leverage":null,"leverage_source":"","pb_override":null},   // omit when there is no finance arm
+                 "leverage":null,"leverage_source":"","pb_override":null,
+                 "drivers_line":null},   // the Drivers line for this arm when its name does not say finance / credit; omit with no finance arm
  "anchors": {...}, "evidence": [...], "returns": {...}   // from the evidence step; see evidence_guide.md
 }
 ```

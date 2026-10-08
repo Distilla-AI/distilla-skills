@@ -9,7 +9,7 @@ plainly, and let the user decide.
 | Driver | Consensus years | After consensus | Source when no consensus |
 |---|---|---|---|
 | Revenue growth | consensus mean path (Base), high (Bull), low (Bear) | linear fade to terminal growth | 3-yr historical average, clipped to −10%..+25% |
-| Segment drivers (Drivers tab) | each segment's trailing growth (or its anchor) plus one common volume shift, so the segments sum to the scenario total | volume fades to terminal growth, price to zero, unless anchored | — (no Drivers tab without segment data) |
+| Segment drivers (Drivers tab) | the scenario total plus each line's lead over it (year-to-date for year 1 when the interim cell is in, then trailing CAGR averaged with it), or its anchor, plus one common volume shift so the segments sum to the scenario total | the lead fades to zero over five years (or consensus years + 2), price to zero, unless anchored; held lines keep their own trend | — (no Drivers tab without segment data) |
 | EBIT margin | consensus EBIT / consensus sales | hold last consensus margin, or fade to mid-cycle (peak guard) | 3-yr historical average |
 | Segment margins (Drivers tab, with segment profit) | last actual margin (or its anchor) plus one common shift, so EBIT = consensus EBIT; corporate / unallocated held at its median % of revenue (up to 3 years) | the line's anchor, else in proportion to the company-level path; held lines flat; company margin = mix | — |
 | Opex % revenue (SG&A, R&D, other) | (consensus gross profit − EBIT) / sales | held at last consensus year | last actual year |
@@ -133,7 +133,8 @@ Raise only the ones that apply. Lead with the one that moves value most.
 15. **Segment drivers.** Say which drivers carry evidence and which are only calibrated: the common
    volume shift is a mechanical allocation, not a view (Caterpillar FY26: every segment +12–24% to reach
    consensus). Name the segment that moves value most and its basis; flag other / eliminations above 10%
-   of revenue. Say which segments are held at their own trend (a finance segment), and point out a
+   of revenue. Show how the mix moves from the last actual year to the last forecast year; a line whose
+   share doubles needs evidence. Say which segments are held at their own trend (a finance segment), and point out a
    calibrated volume that swings against an anchored year (GM International: +12.9% anchored, then −9.5%).
    When every line is anchored in a consensus year, the total leaves consensus that year (shown as a
    variance) and an unanchored line can absorb a catch-up the next year (Tokyo Electron test: Field
@@ -141,8 +142,9 @@ Raise only the ones that apply. Lead with the one that moves value most.
 16. **Segment margins.** The common margin shift in consensus years is calibration, not a view: say
    which line margins carry evidence. When the mix-built company margin parts from the company-level
    path (mix toward a higher-margin segment), say which segment drives it and whether the peak guard
-   still holds for the total. A large corporate / unallocated line (over 5% of revenue) usually holds
-   restructuring or a basis gap — say whether holding it at that share is right. When the history holds
+   still holds for the total. Always say what the corporate / unallocated line holds — corporate costs,
+   restructuring (guided lower?), the basis gap (other income below Distilla's EBIT) — and whether holding
+   it at that share is right; say when the median rests on fewer than 3 years. When the history holds
    a cost that has stopped (GM: Cruise losses in 2023–24), set `segments.corporate_pct` with
    `corporate_basis` and cite it.
 

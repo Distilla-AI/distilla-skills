@@ -17,6 +17,7 @@ It prints a human-readable assumptions summary for the assistant to present to t
 Nothing here is final: the user confirms or edits model_inputs.json before build_model.py runs.
 """
 import json
+import re
 import sys
 import datetime as dt
 from collections import defaultdict
@@ -217,6 +218,41 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
     for s in names:
         a, b = hist[s][i0], hist[s][i1]
         own[s] = clamp(((b / a) ** (1 / (i1 - i0)) - 1) if (a and b and a > 0 and b > 0) else 0.0, -0.15, 0.30)
+    # Year-to-date growth for the first forecast year (segments.py writes "ytd_growth" from the current year's
+    # interim cell and its prior-year comparative): the calibration starts year 1 from it and later pinned years
+    # from the average of it and the trailing growth, so the split follows the latest trend (Caterpillar 2026).
+    ytd = {}
+    for s, d in (SEG.get("ytd_growth") or {}).items():
+        try:
+            end_ = dt.date.fromisoformat(str(d.get("end"))[:10])
+        except ValueError:
+            continue
+        if s in own and d.get("growth") is not None and dt.date.fromisoformat(periods[-1]) < end_ \
+                <= dt.date.fromisoformat(fc_periods[0]):
+            ytd[s] = clamp(float(d["growth"]), -0.30, 0.60)
+    # Each line starts from its LEAD over the company total (trailing CAGR vs the total's, and year-to-date vs the
+    # total's year-to-date), fading to zero by the last forecast year; the common shift then makes pinned years
+    # match. Starting from raw trailing growth every year let a fast line compound (Anta other brands 21% -> 49%).
+    a_t, b_t = rev[i0], rev[i1]
+    own_tot = ((b_t / a_t) ** (1 / (i1 - i0)) - 1) if (a_t and b_t and a_t > 0 and b_t > 0) else 0.0
+    lead_own = {s: own[s] - own_tot for s in names}
+    lead_ytd = {}
+    if ytd and set(ytd) == set(names):
+        w = sum(hist[s][-1] for s in names)
+        ytd_tot = sum(hist[s][-1] * (1 + ytd[s]) for s in names) / w - 1 if w else 0.0
+        lead_ytd = {s: ytd[s] - ytd_tot for s in names}
+    elif ytd:
+        flags.append("SEGMENTS: year-to-date growth covers only some lines - not used (it needs every line).")
+        ytd = {}
+
+    H = min(N, max(5, ncons + 2))  # a line's lead over the total fades to zero over five years (or consensus + 2)
+
+    def lead(s, i):
+        base_ = lead_ytd[s] if (lead_ytd and i == 0) else (lead_own[s] + lead_ytd[s]) / 2 if lead_ytd else lead_own[s]
+        return base_ * max(0.0, 1 - i / H)
+    if ytd:
+        flags.append("SEGMENTS: first-year calibration starts from year-to-date growth ("
+                     + ", ".join(f"{s} {g:+.1%}" for s, g in ytd.items()) + f"; {SEG['ytd_growth'][next(iter(ytd))].get('period', '')}).")
 
     seg_anchor = SEG.get("drivers") or {}
     # "hold": segments that keep their own trend and stay out of the calibration shift (a finance segment,
@@ -235,10 +271,17 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
         return raw_anchor(s, sc, kind, i)
 
     def raw_anchor(s, sc, kind, i):
-        d = ((seg_anchor.get(s) or {}).get(sc) or {}).get(kind) or {}
-        for y, v in d.items():  # keyed by fiscal-year label ("2029") or end date: matched on the label year
-            if fc_periods[i][:4] == str(y)[:4]:
-                return float(v)
+        # keyed by fiscal-year label ("2029") or end date, matched on the label year; "2029+" = that year onward.
+        # A scenario's own entry wins over "all" (one anchor for every scenario).
+        fy = int(fc_periods[i][:4])
+        for key in (sc, "all"):
+            d = ((seg_anchor.get(s) or {}).get(key) or {}).get(kind) or {}
+            hit = [(int(str(y)[:4]), v) for y, v in d.items() if str(y)[:4] == str(fy)]
+            if hit:
+                return float(hit[0][1])
+            onward = sorted((int(str(y)[:4]), v) for y, v in d.items() if str(y).endswith("+") and int(str(y)[:4]) <= fy)
+            if onward:
+                return float(onward[-1][1])
         return None
 
     # Segment margins (option A): when every line has profit history for the last actual year, EBIT is built
@@ -258,6 +301,11 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
         shares = [corp_hist[i] / rev[i] for i in range(len(periods))[-3:] if corp_hist[i] is not None and rev[i]]
         corp_pct = sorted(shares)[len(shares) // 2] if len(shares) % 2 else sum(sorted(shares)[len(shares) // 2 - 1:
                                                                                   len(shares) // 2 + 1]) / 2
+        yrs_ = [periods[i][:4] for i in range(len(periods))[-3:] if corp_hist[i] is not None and rev[i]]
+        if SEG.get("corporate_pct") is None:
+            flags.append(f"SEGMENT MARGINS: corporate / unallocated held at {corp_pct:+.1%} of revenue - median of "
+                         f"{len(shares)} year(s) ({', '.join(f'{y}: {x:+.1%}' for y, x in zip(yrs_, shares))}). At the "
+                         "checkpoint say what it holds (corporate costs, restructuring, the basis gap) and whether it continues.")
         if SEG.get("corporate_pct") is not None:  # a sourced view (a wound-down unit's losses gone, a cost plan)
             flags.append(f"SEGMENT MARGINS: corporate / unallocated set to {float(SEG['corporate_pct']):+.1%} of revenue "
                          f"(raw.json segments.corporate_pct; history median {corp_pct:+.1%}) - "
@@ -267,9 +315,6 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
             flags.append(f"SEGMENT MARGINS: corporate / unallocated was {corp_hist[-1] / rev[-1]:+.1%} of revenue in "
                          f"{periods[-1][:4]} against a {len(shares)}-year median of {corp_pct:+.1%} - the median is held; "
                          "say what the last year's gap was (one-off charges?).")
-        if abs(corp_pct) > 0.05:
-            flags.append(f"SEGMENT MARGINS: corporate / unallocated is {corp_pct:+.1%} of revenue (Distilla EBIT less "
-                         "segment profit: corporate costs, restructuring, basis gap; median of up to 3 years); held at that share.")
     out = {"segments": names, "hist": hist, "other_hist": other, "units": units,
            "margins_on": margins_on, "profit_hist": phist, "corp_hist": corp_hist,
            "corp_pct": [round(corp_pct, 6)] * N if margins_on else None, "margin": {}, "company_margin": {},
@@ -280,6 +325,7 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
            "units_unit": SEG.get("units_unit", ""), "source": SEG.get("source", "Distilla by_segment_financials"),
            "field": SEG.get("field", ""), "scen": {}, "total_growth": {}, "pinned": {}, "basis_summary": {},
            "basis": {s: (seg_anchor.get(s) or {}).get("basis", "") for s in names}}
+    out["basis"].update({s: (out["basis"].get(s) or "") + " [held at its own trend: out of the calibration]" for s in hold})
     for sc in scen:
         target_g = scen[sc]["revenue_growth"]
         over = {idx_of(d) for d in ((rev_anchors.get(sc) or {}).get("overrides") or {})}
@@ -290,6 +336,7 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
         pr = {s: [] for s in names}
         tot_g = []
         Rpath, Tpath = {s: [] for s in names}, []
+        rev_g_last = rev[-1] / rev[-2] - 1 if len(rev) > 1 and rev[-2] else 0.0
         level, L = [], rev[-1]  # the scenario's revenue level each year: pinned years aim at the level, so a year
         for g_ in target_g:     # left off-consensus (every line anchored) does not carry its gap forward
             L *= 1 + g_
@@ -300,8 +347,10 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
             if pinned[i]:
                 T = level[i]
                 S_target = T / (1 + O / S_prev) if S_prev else T
-                base_v = {s: (v_a[s] if v_a[s] is not None else own[s]) for s in names}
                 p_use = {s: (p_i[s] if p_i[s] is not None else 0.0) for s in names}
+                # a held line keeps its own trend; the others start from the total plus their fading lead
+                start = {s: own[s] if s in hold else (1 + target_g[i] + lead(s, i)) / (1 + p_use[s]) - 1 for s in names}
+                base_v = {s: (v_a[s] if v_a[s] is not None else start[s]) for s in names}
                 free = [s for s in names if v_a[s] is None and s not in hold]
                 fixed = sum(R[s] * (1 + base_v[s]) * (1 + p_use[s]) for s in names)
                 denom = sum(R[s] * (1 + p_use[s]) for s in free)
@@ -311,13 +360,21 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
                     flags.append(f"Drivers ({sc}, {fc_periods[i][:4]}): every segment has a volume anchor, so the total "
                                  "is not calibrated to the scenario path that year.")
             else:
-                # fade from the last value to terminal growth (volume) and zero (price), unless anchored
+                # Each line's lead over the company-level path (volume + price vs the scenario's total growth)
+                # fades to zero by the last year, and price fades to zero, unless anchored. Fading raw growth
+                # instead let a fast line compound its weight (Anta other brands 21% -> 49% of revenue).
                 k_left = N - i
+                g_prev = target_g[i - 1] if i else rev_g_last
                 v_use, p_use = {}, {}
                 for s in names:
                     lv, lp = (vol[s][-1] if vol[s] else own[s]), (pr[s][-1] if pr[s] else 0.0)
-                    v_use[s] = v_a[s] if v_a[s] is not None else lv + (g_term - lv) / k_left
                     p_use[s] = p_i[s] if p_i[s] is not None else lp - lp / k_left
+                    if s in hold:  # own trend, faded to terminal growth
+                        v_use[s] = v_a[s] if v_a[s] is not None else lv + (g_term - lv) / k_left
+                        continue
+                    ld = ((1 + lv) * (1 + lp) - 1 - g_prev) if vol[s] else lead(s, i)
+                    nominal = target_g[i] + (ld * (H - i) / (H - i + 1) if i < H else 0.0)
+                    v_use[s] = v_a[s] if v_a[s] is not None else (1 + nominal) / (1 + p_use[s]) - 1
             S = 0.0
             for s in names:
                 vol[s].append(round(v_use[s], 6))
@@ -361,14 +418,14 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
             out.setdefault("company_path", {})[sc] = [round(x, 6) for x in path]
             out["margin_pinned"] = [i <= pin_m for i in range(N)]
             out["company_margin"][sc] = comp
-            if abs(comp[-1] - path[-1]) > 0.02:
+            if abs(comp[-1] - path[-1]) > 0.0025:
                 flags.append(f"SEGMENT MARGINS ({sc}): the mix gives a terminal EBIT margin of {comp[-1]:.1%} against the "
-                             f"company-level path's {path[-1]:.1%} - say which segment drives the difference.")
+                             f"company-level path's {path[-1]:.1%}"
+                             + (" - say which segment drives the difference." if abs(comp[-1] - path[-1]) > 0.02
+                                else " (mix effect; the company-level anchor is a cross-check, not a target)."))
         out["total_growth"][sc] = tot_g
         out["pinned"][sc] = pinned
         anchored = [s for s in names if (seg_anchor.get(s) or {}).get(sc)]
-        if hold:
-            out["basis"].update({s: (out["basis"].get(s) or "") + " [held at its own trend: out of the calibration]" for s in hold})
         out["basis_summary"][sc] = ("calibrated to the scenario total in pinned years; segment anchors for "
                                     + ", ".join(anchored) if anchored else
                                     "calibrated to the scenario total in pinned years; trailing segment growth, "
@@ -581,6 +638,9 @@ def main():
     vm = mkt.get("vendor_market_cap_usd")
     if vm:
         rebuilt_usd = mkt["price"] * bridge["diluted_shares"] * mkt.get("usd_per_price_currency", 1.0)
+        if rebuilt_usd and vm / rebuilt_usd > 1e4:  # Distilla delivered full USD; the model is in millions
+            vm = vm / 1e6
+            flags.append("MARKET CAP CHECK: Distilla market_cap read as full USD and divided by 1,000,000.")
         gap = rebuilt_usd / vm - 1
         mkt["mcap_check"] = f"rebuilt {rebuilt_usd:,.0f} vs Distilla market_cap {vm:,.0f} (USD m): {gap:+.1%}"
         if abs(gap) > 0.10:
@@ -841,6 +901,8 @@ def main():
             srt = sorted(pcts)
             charges_pct = srt[len(srt) // 2] if len(srt) % 2 else (srt[len(srt) // 2 - 1] + srt[len(srt) // 2]) / 2
             if abs(charges_pct) < 0.0025:  # under 0.25% of revenue: the two bases agree
+                flags.append(f"BASIS GAP checked: median {charges_pct:+.2%} of revenue is inside the 0.25% dead-band - set to 0 "
+                             f"({'; '.join(gaps)}).")
                 charges_pct = 0.0
             rc["source"] = (rc.get("source") or "source not recorded") + "; adjusted - Distilla EBIT " + "; ".join(gaps)
     if charges_pct:
@@ -956,16 +1018,34 @@ def main():
         flags[:] = [f + " REPLACED in base by the evidence anchor (see the basis table)."
                     if f.startswith("CYCLICAL PEAK GUARD") else f for f in flags]
     if not anchors:
-        flags.append("No evidence anchors yet: post-consensus growth and margins are FORMULA values with no "
-                     "evidence behind them. Run the evidence step before the checkpoint.")
+        if ((raw.get("segments") or {}).get("drivers")):
+            flags.append("No company-level anchors: segment anchors are in, but the company-level revenue and margin path "
+                         "after consensus is FORMULA (it steers unanchored segment margins). Anchor it or say why not.")
+        else:
+            flags.append("No evidence anchors yet: post-consensus growth and margins are FORMULA values with no "
+                         "evidence behind them. Run the evidence step before the checkpoint.")
 
     # ---------- Revenue drivers (Drivers tab): segment revenue = last year x (1 + volume) x (1 + price), or
     # units x price per unit where Distilla has a unit series. Years the scenario total is pinned (consensus
     # years, and years a revenue anchor overrides) are calibrated: a common volume shift on the segments
     # without their own volume anchor makes the total match exactly. Other years run on the segment drivers,
     # fading to terminal growth (volume) and zero (price). "Other / eliminations" grows with the segment sum.
-    drivers = build_drivers(raw.get("segments") or {}, periods, rev, fc_periods, N, ncons, scen, g_term,
+    SEGR = raw.get("segments") or {}
+    if fa and SEGR.get("revenue"):
+        fl = (raw.get("finance_arm") or {}).get("drivers_line")
+        if not fl:
+            cand = [s for s in SEGR["revenue"] if re.search(r"financ|credit|leasing", s, re.I)]
+            fl = cand[0] if len(cand) == 1 else None
+        if fl in SEGR["revenue"]:
+            fa["drivers_line"] = fl
+            if fl not in (SEGR.get("hold") or []):
+                SEGR["hold"] = list(SEGR.get("hold") or []) + [fl]
+    drivers = build_drivers(SEGR, periods, rev, fc_periods, N, ncons, scen, g_term,
                             (anchors.get("revenue_growth") or {}), idx_of, flags, ebit=ebit)
+    if drivers and fa and fa.get("drivers_line") in drivers["segments"] and drivers.get("margins_on"):
+        fa["drivers_key"] = f"s{drivers['segments'].index(fa['drivers_line'])}"
+        flags.append(f"Finance arm: forecast pre-tax profit taken from the Drivers line '{fa['drivers_line']}' (held at its "
+                     "own trend and margin), so the DCF removes the same profit the Drivers tab builds.")
     if drivers:
         for sc in scen:
             scen[sc]["revenue_growth"] = drivers["total_growth"][sc]

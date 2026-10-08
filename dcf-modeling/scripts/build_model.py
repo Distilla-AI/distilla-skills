@@ -922,7 +922,8 @@ if FA_ON:
                source=f"Segment assets {FA.get('assets', 0):,.0f} = {FA.get('asset_share', 0):.0%} of total assets")
     dsb.scalar("fa_profit", "Finance arm pre-tax profit, last year", FA.get("profit", 0), NUM,
                source=f"{FA.get('segment_source', 'Distilla by_segment_financials')} ({FA.get('period') or 'last year'})")
-    dsb.scalar("fa_pct", "  as % of consolidated revenue (held in the forecast)", None, PCT2)
+    dsb.scalar("fa_pct", "  as % of consolidated revenue" + (" (memo; forecast from the Drivers tab)" if FA.get("drivers_key") and DMG
+               else " (held in the forecast)"), None, PCT2)
     dsb.scalar("fa_rec_share", "Finance receivables share of current receivables", round(FA.get("rec_share", 0), 4), PCT,
                source=FA.get("rec_share_basis"))
     dsb.scalar("fa_debt", "Finance arm debt (out of the bridge)", round(FA.get("debt", 0), 1), NUM, source=FA.get("debt_basis"))
@@ -974,7 +975,10 @@ dsb.line("frac", "Fraction of year included", DEC,
 dsb.line("ebit", "EBIT", NUM, fc=lambda j: f"={ref(IS, 'ebit', j)}")
 if FA_ON:
     dsb.line("fa_ebit", "(-) Finance arm pre-tax profit (valued separately)", NUM,
-             fc=lambda j: f"=-{ref(IS, 'rev', j)}*{sref('fa_pct')}*{sref('fa_on')}")
+             fc=(lambda j: f"=-{ref(DRIVERS, FA['drivers_key'] + '_op', j)}*{sref('fa_on')}") if FA.get("drivers_key") and DMG
+             else (lambda j: f"=-{ref(IS, 'rev', j)}*{sref('fa_pct')}*{sref('fa_on')}"),
+             note=(f"From the Drivers tab line '{FA.get('drivers_line')}' (segment profit)." if FA.get("drivers_key") and DMG
+                   else "Last year's share of consolidated revenue, held."))
     ebit_in = lambda j: f"({ref(DCF, 'ebit', j)}+{ref(DCF, 'fa_ebit', j)})"  # noqa: E731
 else:
     ebit_in = lambda j: ref(DCF, 'ebit', j)  # noqa: E731
