@@ -1,6 +1,6 @@
 ---
 name: dcf-modeling
-description: Build a full 3-statement financial model (income statement, balance sheet, cash flow) and a DCF valuation in Excel with live formulas, using Distilla MCP data (actuals, consensus estimates, prices) for US, Korean, Japanese, Chinese and Hong Kong listed companies. Use this skill whenever the user asks to value a company, build a DCF, do a discounted cash flow, build a 3-statement or three-statement model, estimate intrinsic or fair value, work out what a stock is worth, or asks for a financial model or valuation model of a listed company, even if they don't say "DCF" or "Distilla". Also use it for bull/bear/base scenario valuations, WACC-and-terminal-growth sensitivity tables, or updating a model built earlier with this skill.
+description: Build a full 3-statement financial model (income statement, balance sheet, cash flow) and a DCF valuation in Excel with live formulas, using Distilla MCP data (actuals, consensus estimates, prices) for listed companies in Distilla's coverage. Use this skill whenever the user asks to value a company, build a DCF, do a discounted cash flow, build a 3-statement or three-statement model, estimate intrinsic or fair value, work out what a stock is worth, or asks for a financial model or valuation model of a listed company, even if they don't say "DCF" or "Distilla". Also use it for bull/bear/base scenario valuations, WACC-and-terminal-growth sensitivity tables, or updating a model built earlier with this skill.
 ---
 
 **Runtime requirements:** Requires Distilla MCP tools, web search / page fetching (`web_search` / `web_fetch` or equivalent host tools), and Python code execution. Map the tool names in these instructions to the host's equivalent capabilities while preserving source restrictions and required checks. If tool loading is deferred, use the host's discovery mechanism; MCP tool prefixes may vary. Building the workbook needs Python with openpyxl; recalculation uses the host's spreadsheet recalculation tool if it has one, else `scripts/recalc.py` (Python `formulas` package).
@@ -332,8 +332,7 @@ proves formulas evaluate; check_model proves the balance sheet balances, history
 Distilla, and the DCF arithmetic is right. Fix the cause of any failure and rebuild; don't ship a
 workbook that fails either check. Warnings are fine to ship, but mention them.
 
-If the host has its own spreadsheet recalculation tool (for example an xlsx skill's `recalc.py`),
-it may replace the second line. `recalc.py` needs the Python `formulas` package; install it if it
+If the host provides its own spreadsheet recalculation tool, it may replace the second line. `recalc.py` needs the Python `formulas` package; install it if it
 is missing. If no recalculation is possible, deliver the workbook marked "not recalculated or
 verified here; values compute when opened in Excel or Google Sheets", give no value per share in
 chat, and say why.
