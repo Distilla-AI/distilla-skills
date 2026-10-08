@@ -146,7 +146,9 @@ Raise only the ones that apply. Lead with the one that moves value most.
    restructuring (guided lower?), the basis gap (other income below Distilla's EBIT) — and whether holding
    it at that share is right; say when the median rests on fewer than 3 years. When the history holds
    a cost that has stopped (GM: Cruise losses in 2023–24), set `segments.corporate_pct` with
-   `corporate_basis` and cite it.
+   `corporate_basis` and cite it. Size it from what continues: the company's reported corporate /
+   unallocated line for the last year (corporate costs, without the stopped item and one-off charges) as a
+   % of revenue, plus the basis gap (GM: −0.6% corporate + the 1.8% gap = −2.4%).
 
 ## WACC sourcing order (user choice: web search, then defaults)
 

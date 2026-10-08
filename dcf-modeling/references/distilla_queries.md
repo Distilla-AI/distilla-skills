@@ -208,8 +208,9 @@ from the annual one and mix breakdowns (segment, region, end market) in one fiel
 SBU / EBU). When one field holds several breakdowns at once (Anta "Revenue": brand, product and channel),
 the listing warns that they overlap: keep one breakdown with `--keep` (repeat it per segment).
 The latest annual cell usually carries three years (Caterpillar FY2025: 2023–25). Save the rows to a file
-exactly as Distilla returns them (each row's `content` verbatim, written by code from the tool result) —
-never retyped — and run `python <skill_dir>/scripts/segments.py cells.json` to list the fields and segments, then
+exactly as Distilla returns them: by code when the host saves the result to a file; when it shows the
+result inline, copy each row's `content` as delivered (copied, never retyped figure by figure), then check
+the listing's segment sums against the cell's own total row. Then run `python <skill_dir>/scripts/segments.py cells.json` to list the fields and segments, then
 `--revenue "<field>"` (plus `--units "<field>"` for a structured unit series and `--profit "<field>"` for
 segment operating profit — the listing marks profit candidates; check the margins it prints look like
 operating margins, not gross; a finance segment's pre-tax profit is its segment profit and is right as it

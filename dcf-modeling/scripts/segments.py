@@ -91,7 +91,8 @@ def main():
     ap.add_argument("cells")
     ap.add_argument("--revenue", action="append")
     ap.add_argument("--units", action="append")
-    ap.add_argument("--profit", action="append")
+    ap.add_argument("--profit", action="append",
+                    help="segment operating profit field; repeat for label variants across filings (first wins per segment-year)")
     ap.add_argument("--hold", action="append", default=[],
                     help="segment kept at its own trend and margin, out of the calibration (a finance segment)")
     ap.add_argument("--rename", action="append", default=[], help="OLD=NEW segment name")
@@ -201,18 +202,33 @@ def main():
     # columns falls back to an earlier span that has them (Caterpillar H1 2026 -> Q1 2026 with restated
     # comparatives). Never pair cells across a segment restructure: give only cells on one structure.
     last_full = max(e for d in rev.values() for e in d)
+    # Back-to-back interim spans are chained into year-to-date spans (Q1 + Q2 = H1) for both years, so
+    # separate quarter cells (GM) still give year-to-date growth, not one quarter against another.
+    pc = {k: v for k, v in part.items() if k[0] in a.revenue}
+    for _ in range(4):
+        add = {}
+        for (f_, s_, (a1, b1)), (as1, v1, u1) in pc.items():
+            for (f2, s2, (a2, b2)), (as2, v2, u2) in pc.items():
+                if f2 == f_ and s2 == s_ and a2 == b1 + dt.timedelta(days=1) and (b2 - a1).days < 330 \
+                        and (f_, s_, (a1, b2)) not in pc:
+                    add[(f_, s_, (a1, b2))] = (max(as1, as2), v1 + v2, u1 or u2)
+        if not add:
+            break
+        pc.update(add)
+    fy_start = (dt.date.fromisoformat(last_full) + dt.timedelta(days=1))
 
     def prior_of(s, a1, b1):
-        pv = [v for (f_, s_, (a2, b2)), (_, v, _) in part.items() if f_ in a.revenue and s_ == s
+        pv = [v for (f_, s_, (a2, b2)), (_, v, _) in pc.items() if s_ == s
               and abs((a1 - a2).days - 365) <= 20 and abs((b1 - b2).days - 365) <= 20 and v]
         return pv[0] if pv else None
-    cands = sorted({sp for (f_, s_, sp) in part if f_ in a.revenue and s_ in rev and sp[1].isoformat() > last_full},
-                   key=lambda sp: (sp[1], (sp[1] - sp[0]).days), reverse=True)
+    # latest end first; at the same end, the span from the start of the fiscal year (year to date) first
+    cands = sorted({sp for (f_, s_, sp) in pc if s_ in rev and sp[1].isoformat() > last_full},
+                   key=lambda sp: (sp[1], abs((sp[0] - fy_start).days) <= 20, (sp[1] - sp[0]).days), reverse=True)
     ytd, skipped = {}, []
     for a1, b1 in cands:
         got = {}
         for s in rev:
-            v1 = next((v for (f_, s_, sp), (_, v, _) in part.items() if f_ in a.revenue and s_ == s and sp == (a1, b1)), None)
+            v1 = next((v for (f_, s_, sp), (_, v, _) in pc.items() if s_ == s and sp == (a1, b1)), None)
             pv = prior_of(s, a1, b1) if v1 is not None else None
             if pv:
                 got[s] = {"growth": round(v1 / pv - 1, 6), "end": b1.isoformat(),

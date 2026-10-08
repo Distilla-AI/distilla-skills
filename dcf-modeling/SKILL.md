@@ -311,7 +311,8 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
    list of exactly 100 or 200 entries is capped (rule 3a widening applies). **Numbers** taken from a
    broker (discount rate, segment volumes, prices, margins) come from that broker's latest note, and from
    one dated after the company's latest results (`market.last_results_date`) when it exists; read that
-   note too if the most relevant one is older. An older number is kept only when no later note gives it —
+   note too if the most relevant one is older. When the latest note does not restate the number (an
+   industry tracker, a sales update), use the latest note that does, and say so. An older number is kept only when no later note gives it —
    the script marks it pre-results and leaves pre-results discount rates out of the median when current
    ones exist. Every anchor, company-level and segment, carries `as_of` (the date of its newest source). Record any discount rate
    a note states (WACC or cost of equity) in `raw.json["broker_discount_rates"]`; then 2–3 *neutral* `search_public_library` `mode="synthesize"` questions ("when
@@ -341,7 +342,10 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
    note gives it (Power & Energy margin target, a segment's cycle-low margin) — `"2029+"` for that year
    onward, `"all"` for every scenario; anchor bull and bear only where a source gives a range, else leave
    them calibrated to consensus high / low. Segment margins are on the company's own segment basis (guidance
-   is too): the corporate line carries the basis gap, so no basis adjustment. In consensus years the
+   is too): the corporate line carries the basis gap, so no basis adjustment. A segment anchor wins for its
+   line; the company-level path after consensus steers only the unanchored lines, so a company-level bear
+   margin and a segment bear margin can disagree — set them together, and the mix result is the case's
+   margin. In consensus years the
    unanchored lines shift by a common amount so EBIT still matches consensus. After consensus an
    unanchored line moves in proportion to the company-level margin path (anchors and peak guard), so the
    company margin is the mix result; a held line keeps its margin flat.

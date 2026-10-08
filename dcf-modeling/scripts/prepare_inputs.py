@@ -631,6 +631,11 @@ def main():
         elif why or (days_ is not None and days_ > 30):
             flags.append(f"RECENCY: the consensus snapshot is dated {ca}, {days_} days before the valuation date.")
     bridge = raw["bridge"]
+    # values pasted as delivered ("12,345.6") are parsed here too; dates and text stay as they are
+    for blk in (bridge, mkt):
+        for k_, v_ in list(blk.items()):
+            if isinstance(v_, str) and num(v_) is not None:
+                blk[k_] = num(v_)
     wacc = {}
 
     def take(key, default, label):
@@ -1204,6 +1209,21 @@ def main():
         cx, sm = C.get("capex_mean", {}).get(p), C["sales_mean"].get(p)
         capex_cons.append(abs(cx) / sm if (cx is not None and sm) else None)
     hist_capex = avg(hist_ratios["capex_pct_rev"][last3]) or 0.05
+    i1_ = next((i for i, x in enumerate(capex_cons) if x is not None), None)
+    c1 = capex_cons[i1_] if i1_ is not None else None
+    # a basis break moves both the share of revenue and the amount (a revenue surge alone moves only the share)
+    cx1 = C.get("capex_mean", {}).get(cons_periods[i1_]) if i1_ is not None else None
+    lvl = abs(cx1) / capex[-1] if (cx1 is not None and capex[-1]) else 1.0
+    sh_ = c1 / hist_capex if (c1 is not None and hist_capex) else 1.0
+    if (sh_ < 0.6 and lvl < 0.6) or (sh_ > 1.6 and lvl > 1.6):  # same direction: a basis break, not a boom
+        if fa and fa.get("leased"):
+            flags.append(f"CAPEX SPLICE: consensus capex {c1:.1%} of revenue vs {hist_capex:.1%} in history - history includes "
+                         f"the finance arm's purchases of assets leased to customers, consensus (and its D&A) leaves them out. "
+                         "Consistent here: those assets are held flat in PP&E and the arm is valued separately. Say so.")
+        else:
+            flags.append(f"CAPEX SPLICE: consensus capex {c1:.1%} of revenue vs {hist_capex:.1%} in history (rule 2.6 basis "
+                         "break?) - check what consensus capex covers (leased assets, capitalised software, acquisitions) "
+                         "and that D&A is on the same basis; override capex_pct_rev if they differ.")
     capex_cons = [x if x is not None else hist_capex for x in capex_cons]
     # simulate the base-case PP&E path through the consensus years
     # A finance arm's assets leased to customers are held flat inside PP&E: they are the finance arm's
