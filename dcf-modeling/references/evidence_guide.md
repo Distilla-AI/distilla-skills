@@ -91,6 +91,7 @@ Spend the questions where value is sensitive or a flag fired:
 | PP&E drift / capex | Capex guidance and multi-year investment plans; new capacity timing |
 | High growth years | Management revenue targets; TAM and share projections |
 | Tax far below statutory | Tax incentives and when they expire |
+| Drivers tab on | Per segment: volume (backlog, shipments, units, capacity) and price (realization, ASP) guidance; broker summaries stating segment growth, units or ASPs - cite broker, title, date |
 
 ## 4. Rules
 

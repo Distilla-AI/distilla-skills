@@ -9,6 +9,7 @@ plainly, and let the user decide.
 | Driver | Consensus years | After consensus | Source when no consensus |
 |---|---|---|---|
 | Revenue growth | consensus mean path (Base), high (Bull), low (Bear) | linear fade to terminal growth | 3-yr historical average, clipped to −10%..+25% |
+| Segment drivers (Drivers tab) | each segment's trailing growth (or its anchor) plus one common volume shift, so the segments sum to the scenario total | volume fades to terminal growth, price to zero, unless anchored | — (no Drivers tab without segment data) |
 | EBIT margin | consensus EBIT / consensus sales | hold last consensus margin, or fade to mid-cycle (peak guard) | 3-yr historical average |
 | Opex % revenue (SG&A, R&D, other) | (consensus gross profit − EBIT) / sales | held at last consensus year | last actual year |
 | Gross margin | not an input: EBIT margin + opex %, so it follows the scenario and opex can never go negative | | |
@@ -128,6 +129,10 @@ Raise only the ones that apply. Lead with the one that moves value most.
    BASIS flag fired and the move is real, say so.
 14. **History break.** After a divestiture, say whether the reference points use restated
    continuing-operations history, and if not, that the long-run average mixes perimeters.
+15. **Segment drivers.** Say which drivers carry evidence and which are only calibrated: the common
+   volume shift is a mechanical allocation, not a view (Caterpillar FY26: every segment +12–24% to reach
+   consensus). Name the segment that moves value most and its basis; flag other / eliminations above 10%
+   of revenue.
 
 ## WACC sourcing order (user choice: web search, then defaults)
 

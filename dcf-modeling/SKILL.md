@@ -21,6 +21,8 @@ structural).
 - `scripts/prepare_inputs.py` — cleans Distilla output, drafts Base/Bull/Bear assumptions, fills
   flagged WACC defaults, prints the checkpoint summary.
 - `scripts/build_model.py` — writes the live-formula workbook (7 tabs).
+- `scripts/segments.py` — turns Distilla segment cells into a clean annual segment table for the
+  Drivers tab.
 - `scripts/recalc.py` — recalculates the workbook in Python (`formulas` package) when the host has
   no spreadsheet recalculation tool.
 - `scripts/check_model.py` — independent post-recalc verification.
@@ -154,6 +156,7 @@ Never call any other connector, even when one is connected.
 | Beta | Not in Distilla MCP today (no index series) | None | Published 5Y monthly betas, every one found in one search: Yahoo Finance Statistics "Beta (5Y Monthly)", StockAnalysis, Investing.com, GuruFocus — each marked `†` with source and as-of date; a value read on a fetched page first, one seen only in a search result labelled "search result"; `prepare_inputs.py` takes the median, Blume-adjusts it and checks it against the sector beta; none found → relevered sector beta, flagged. Never a regression on Distilla prices; ignore 1-year betas and betas against a foreign benchmark |
 | Broker research | `search_public_library` (`doc_types = ["Research"]`, `tickers`, `date_range`, `brokers`; `mode = "list"` for a catalog); `get_library_document` for summary + tags (Research never returns full text) | `standard_event` (`Sell-side Rating Action`, `Sell-side Target Price Action`, `Sell-side coverage initiation`) — discovery only: brokers to list again, never a rating or TP | **None** — broker reports are not reliably on the open web; no broker after both 3a lists is `no coverage found`, not a gap. |
 | Finance arm (captive finance: revenue, profit, assets) | `ku_cell` `by_segment_financials` (the finance segment: e.g. Financial Products, Financial Services, GM Financial, Ford Credit); `cash_and_debt` comment for the finance-arm debt or leverage | `ku_cell` `by_segment_performances` | None — Distilla covers these lines |
+| Segment revenue and units (Drivers tab) | `ku_cell` `by_segment_financials` (full-year periods; `scripts/segments.py`) | `ku_cell` `by_segment_performances` | Official filings — the segment note of the latest annual report; mark `†` |
 | Finance arm balance sheet (finance receivables current / long-term, debt, equity) | Not in Distilla MCP today as numbers (segment KUs give assets only; `cash_and_debt` gives text) | `cash_and_debt` leverage text → equity = assets ÷ (1 + leverage), debt = assets − equity, flagged estimates | Official filings — the latest annual report's supplemental consolidating data or finance-segment balance sheet: SEC EDGAR (US), HKEXnews (HK), EDINET / TDnet (JP), DART (KR), CNINFO (CN) → the finance arm's own filed report; mark `†` with the as-of date |
 
 **Field notes for this skill:**
@@ -214,6 +217,14 @@ that shows the finance arm separately — the 10-Q nearest the bridge date, else
 equity (its own column after eliminations), its own cash, and assets leased to customers (inside
 PP&E). Else the Distilla leverage text; else leave them `null`. The script values the finance arm
 separately; see the field notes.
+
+**Segments (Drivers tab).** Read the latest full-year `by_segment_financials` cell (it carries about three
+years; distilla_queries.md section 5c), save the rows, run `scripts/segments.py` on them to list the
+fields, then again with `--revenue "<field>"` (and `--units "<field>"` where Distilla reports a unit
+series, e.g. wholesale vehicles) and put the output in `raw.json["segments"]`. Keep a finance segment:
+its revenue is in consolidated revenue. Revenue is then built segment by segment; when segments are
+missing, too few or do not cover the last actual year, the script says so and keeps the single growth
+rate.
 
 **Pensions, basis gap, history breaks, share count** (every company).
 - From the latest filing: the net pension and retiree-benefit deficit (`bridge.pension_deficit`,
@@ -283,13 +294,22 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
    oversupply 2029 → base / bull / bear), instead of consensus high/low alone.
 4. **Leave it as formula when nothing supports a change**, and let the label say "formula, no
    evidence". Record in each evidence entry what it changed, including "no change".
+5. **Segment drivers** (when the Drivers tab is on): for the segments that matter, look for volume and
+   price evidence — company guidance (`guidances` KU, `company_drivers`: price realization, backlog,
+   shipments), the broker note summaries already read (stated units, ASPs, segment growth; cite broker,
+   title and date — a broker view, never consensus), segment history. Record them in
+   `raw.json["segments"]["drivers"]` by segment and scenario (volume and price by year, with a basis);
+   in consensus years the other segments' volume is recalibrated so the total still matches consensus.
+   Where brokers disagree on a driver, that spread sets bull and bear.
 Rerun prepare_inputs.py; evidence, anchors and return policy live in raw.json, so nothing is lost.
 
 ### 5. Checkpoint — stop and get confirmation
 First build, recalculate and check the draft exactly as in step 7, so the checkpoint can show a
 draft value. Then present, compactly, in chat:
 - The Base case table (growth, EBIT margin, capex %) by forecast year, noting which years are
-  consensus-anchored.
+  consensus-anchored. With the Drivers tab: the base volume and price growth for each segment, the
+  other / eliminations line, and each driver's basis (guidance / broker view / history / calibrated /
+  formula, no evidence).
 - WACC and terminal growth, each input tagged *live* or *default*, and beside them the discount
   rates the broker notes state with the value per share at their median rate (or "none stated").
 - **Draft value per share** for base, bull and bear against the price, and what the price implies
@@ -318,6 +338,8 @@ Edit `model_inputs.json` directly. Useful keys:
 - `wacc.rf|beta|erp|crp|kd_pretax|tax_rate|target_debt_weight` (+ `_source` strings)
 - `dcf.terminal_growth|exit_multiple|tv_method` (1 perpetuity, 2 exit)|`mid_year`
 - `include_lt_investments` (1/0)
+- `drivers.scen.base|bull|bear.<segment>.volume|price` — per-year lists (or edit the Drivers tab directly);
+  driver anchors that must survive a re-draft go in `raw.json["segments"]["drivers"]`
 
 To change the horizon, rerun prepare_inputs.py with `--years N` (this redrafts, so reapply edits).
 
@@ -370,6 +392,7 @@ Before delivering, state PASS or FAIL for each check below with cited evidence (
 | Tab | Contents |
 |---|---|
 | Summary | Value per share, upside, EV, WACC, checks status, forecast snapshot, key-assumption basis table (formula-only items in red), evidence table (finding, stance, source, date, effect), model notes, flags |
+| Drivers | When segment data allows: each segment's volume and price growth (Base / Bull / Bear, active scenario), units and revenue per unit where a unit series exists, segment revenue, other / eliminations, total revenue (feeds the Model tab) and its variance to consensus |
 | Assumptions | Scenario switch; Base/Bull/Bear growth and margin; all drivers with history alongside; consensus memo |
 | Model | Income Statement → Balance Sheet → Cash Flow → Schedules (working capital, PP&E, debt, leases, equity) stacked on one tab, same column = same year, each section a collapsible group. History links to Raw Data line by line; every subtotal is a real sum |
 | DCF | Bridge and WACC inputs with sources, UFCF build with stub period, perpetuity-growth terminal value, equity bridge; terminal-multiple cross-check; reverse DCF (growth or margin the price implies); terminal reinvestment check |

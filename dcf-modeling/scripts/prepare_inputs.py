@@ -144,6 +144,129 @@ def add_years(date_str, n):
     return dt.date(y, d.month, day).isoformat()
 
 
+# ---------------------------------------------------------------- revenue drivers
+def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anchors, idx_of, flags):
+    """Segment revenue drivers for the Drivers tab, or None (single growth rate) with the reason flagged.
+
+    SEG = raw.json["segments"]: {"revenue": {seg: {end_date: value}}, "units": {seg: {...}} (optional),
+    "units_unit", "source", "drivers": {seg: {scenario: {"volume": {year: v}, "price": {year: p}}, "basis": text}}}.
+    """
+    if not SEG.get("revenue"):
+        return None
+
+    def match(series):
+        """{end_date: value} -> values aligned to Distilla's fiscal periods (end dates within 20 days)."""
+        out = []
+        for p in periods:
+            pd_ = dt.date.fromisoformat(p)
+            hit = [num(v) for d, v in series.items()
+                   if abs((dt.date.fromisoformat(str(d)[:10]) - pd_).days) <= 20]
+            out.append(hit[0] if hit else None)
+        return out
+
+    names = list(SEG["revenue"])
+    hist = {s: match(SEG["revenue"][s]) for s in names}
+    if len(names) < 2:
+        flags.append("SEGMENTS not used: fewer than 2 segments - revenue stays on the single growth rate.")
+        return None
+    usable = [i for i in range(len(periods)) if all(hist[s][i] is not None for s in names)]
+    if not usable or usable[-1] != len(periods) - 1 or len(usable) < 2:
+        flags.append("SEGMENTS not used: segment revenue does not cover the last actual year and the one before "
+                     f"(years found: {[periods[i][:4] for i in usable]}) - revenue stays on the single growth rate.")
+        return None
+    seg_sum = [sum(hist[s][i] for s in names) if i in usable else None for i in range(len(periods))]
+    other = [rev[i] - seg_sum[i] if i in usable else None for i in range(len(periods))]
+    o_share = other[-1] / rev[-1] if rev[-1] else 0
+    if abs(o_share) > 0.25:
+        flags.append(f"SEGMENTS not used: segments sum to {seg_sum[-1]:,.0f} against Distilla revenue {rev[-1]:,.0f} "
+                     f"({o_share:+.0%} other / eliminations) - check the field and the segment list.")
+        return None
+    if abs(o_share) > 0.10:
+        flags.append(f"SEGMENTS: other / eliminations is {o_share:+.0%} of revenue (intersegment sales or unallocated "
+                     "revenue); it grows with the segment sum.")
+
+    units = {}
+    for s, ser in (SEG.get("units") or {}).items():
+        if s in hist:
+            u = match(ser)
+            if u[-1] and u[-2]:
+                units[s] = u
+    # own trailing growth per segment (CAGR over the usable years, clipped) = default volume driver
+    i0, i1 = usable[0], usable[-1]
+    own = {}
+    for s in names:
+        a, b = hist[s][i0], hist[s][i1]
+        own[s] = clamp(((b / a) ** (1 / (i1 - i0)) - 1) if (a and b and a > 0 and b > 0) else 0.0, -0.15, 0.30)
+
+    seg_anchor = SEG.get("drivers") or {}
+
+    def anchor(s, sc, kind, i):
+        d = ((seg_anchor.get(s) or {}).get(sc) or {}).get(kind) or {}
+        for y, v in d.items():  # keyed by fiscal-year label ("2029") or end date: matched on the label year
+            if fc_periods[i][:4] == str(y)[:4]:
+                return float(v)
+        return None
+
+    out = {"segments": names, "hist": hist, "other_hist": other, "units": units,
+           "units_unit": SEG.get("units_unit", ""), "source": SEG.get("source", "Distilla by_segment_financials"),
+           "field": SEG.get("field", ""), "scen": {}, "total_growth": {}, "pinned": {}, "basis_summary": {},
+           "basis": {s: (seg_anchor.get(s) or {}).get("basis", "") for s in names}}
+    for sc in scen:
+        target_g = scen[sc]["revenue_growth"]
+        over = {idx_of(d) for d in ((rev_anchors.get(sc) or {}).get("overrides") or {})}
+        pinned = [i < ncons or i in over for i in range(N)]
+        R = {s: hist[s][-1] for s in names}
+        O, S_prev, T_prev = other[-1], seg_sum[-1], rev[-1]
+        vol = {s: [] for s in names}
+        pr = {s: [] for s in names}
+        tot_g = []
+        for i in range(N):
+            p_i = {s: anchor(s, sc, "price", i) for s in names}
+            v_a = {s: anchor(s, sc, "volume", i) for s in names}
+            if pinned[i]:
+                T = T_prev * (1 + target_g[i])
+                S_target = T / (1 + O / S_prev) if S_prev else T
+                base_v = {s: (v_a[s] if v_a[s] is not None else own[s]) for s in names}
+                p_use = {s: (p_i[s] if p_i[s] is not None else 0.0) for s in names}
+                free = [s for s in names if v_a[s] is None]
+                fixed = sum(R[s] * (1 + base_v[s]) * (1 + p_use[s]) for s in names)
+                denom = sum(R[s] * (1 + p_use[s]) for s in free)
+                delta = (S_target - fixed) / denom if denom else 0.0
+                v_use = {s: base_v[s] + (delta if s in free else 0.0) for s in names}
+                if not free:
+                    flags.append(f"Drivers ({sc}, {fc_periods[i][:4]}): every segment has a volume anchor, so the total "
+                                 "is not calibrated to the scenario path that year.")
+            else:
+                # fade from the last value to terminal growth (volume) and zero (price), unless anchored
+                k_left = N - i
+                v_use, p_use = {}, {}
+                for s in names:
+                    lv, lp = (vol[s][-1] if vol[s] else own[s]), (pr[s][-1] if pr[s] else 0.0)
+                    v_use[s] = v_a[s] if v_a[s] is not None else lv + (g_term - lv) / k_left
+                    p_use[s] = p_i[s] if p_i[s] is not None else lp - lp / k_left
+            S = 0.0
+            for s in names:
+                vol[s].append(round(v_use[s], 6))
+                pr[s].append(round(p_use[s], 6))
+                R[s] = R[s] * (1 + v_use[s]) * (1 + p_use[s])
+                S += R[s]
+            O = O * (S / S_prev) if S_prev else O
+            T = S + O
+            tot_g.append(T / T_prev - 1 if T_prev else 0.0)
+            S_prev, T_prev = S, T
+        out["scen"][sc] = {s: {"volume": vol[s], "price": pr[s]} for s in names}
+        out["total_growth"][sc] = tot_g
+        out["pinned"][sc] = pinned
+        anchored = [s for s in names if (seg_anchor.get(s) or {}).get(sc)]
+        out["basis_summary"][sc] = ("calibrated to the scenario total in pinned years; segment anchors for "
+                                    + ", ".join(anchored) if anchored else
+                                    "calibrated to the scenario total in pinned years; trailing segment growth, "
+                                    "faded to terminal growth after (formula, no evidence)")
+    flags.append(f"Revenue built from {len(names)} segments ({', '.join(names)}) on the Drivers tab"
+                 + (f"; units x price for {', '.join(units)}" if units else "") + ".")
+    return out
+
+
 # ---------------------------------------------------------------- main
 def main():
     if len(sys.argv) < 3:
@@ -710,6 +833,22 @@ def main():
         flags.append("No evidence anchors yet: post-consensus growth and margins are FORMULA values with no "
                      "evidence behind them. Run the evidence step before the checkpoint.")
 
+    # ---------- Revenue drivers (Drivers tab): segment revenue = last year x (1 + volume) x (1 + price), or
+    # units x price per unit where Distilla has a unit series. Years the scenario total is pinned (consensus
+    # years, and years a revenue anchor overrides) are calibrated: a common volume shift on the segments
+    # without their own volume anchor makes the total match exactly. Other years run on the segment drivers,
+    # fading to terminal growth (volume) and zero (price). "Other / eliminations" grows with the segment sum.
+    drivers = build_drivers(raw.get("segments") or {}, periods, rev, fc_periods, N, ncons, scen, g_term,
+                            (anchors.get("revenue_growth") or {}), idx_of, flags)
+    if drivers:
+        for sc in scen:
+            scen[sc]["revenue_growth"] = drivers["total_growth"][sc]
+            if drivers["pinned"][sc] != [True] * N:
+                basis["revenue_growth"][sc] = {
+                    "type": "drivers",
+                    "text": basis["revenue_growth"][sc]["text"].split(", then")[0]
+                    + "; segment drivers after that (Drivers tab: " + drivers["basis_summary"][sc] + ")"}
+
     reference_points = {"ebit_margin_by_year": {p[:4]: round(v, 4) for p, v in ref_m.items()},
                         "ebit_margin_avg": round(sum(ref_m.values()) / len(ref_m), 4) if ref_m else None,
                         "ebit_margin_max": max(ref_m.values()) if ref_m else None,
@@ -894,6 +1033,7 @@ def main():
         "basis": basis,
         "reference_points": reference_points,
         "finance_arm": fa or {},
+        "drivers": drivers or {},
         "recurring_charges": {"pct_rev": round(charges_pct, 4), "source": rc.get("source", "")} if charges_pct else {},
         "multiple_history": raw.get("multiple_history") or {},
         "basis_gap": {"none": True, "reason": rc.get("reason", "")} if rc.get("none") else {},
@@ -936,6 +1076,16 @@ def main():
     for sc in ("base", "bull", "bear"):
         row(f"{sc.title()} revenue growth %", scen[sc]["revenue_growth"])
         row(f"{sc.title()} EBIT margin %", scen[sc]["ebit_margin"])
+    if drivers:
+        print("Drivers (base): segment volume / price growth %, last actual revenue")
+        for s_ in drivers["segments"]:
+            d_ = drivers["scen"]["base"][s_]
+            row(f"  {s_[:20]} vol", d_["volume"])
+            if any(abs(x) > 1e-9 for x in d_["price"]):
+                row(f"  {s_[:20]} price", d_["price"])
+        print(f"  other / eliminations last actual {drivers['other_hist'][-1]:,.0f} "
+              f"({drivers['other_hist'][-1] / rev[-1]:+.1%} of revenue); pinned years: "
+              f"{sum(drivers['pinned']['base'])} of {N}")
     row("Capex % revenue", capex_path)
     row("Opex % revenue", opex_path)
     row("D&A % rev (consensus)", da_override)

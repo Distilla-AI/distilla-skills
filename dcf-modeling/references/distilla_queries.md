@@ -10,6 +10,7 @@ Read this before querying. Every step below was tested against live Distilla dat
 4. Consensus estimates
 5. Share price and target
 5b. Finance arm (captive finance)
+5c. Segments (Drivers tab)
 6. Sanity checks before writing raw.json
 7. raw.json schema
 8. Gotchas (read this)
@@ -164,6 +165,24 @@ Toyota Financial Services). If its assets are 10% or more of total assets, fill 
   covenant leverage 7.96x, Jun 2026) — record it as `leverage`; the script then estimates equity and
   debt and flags them. Anything not found stays `null`.
 
+## 5c. Segments (Drivers tab)
+
+```
+query_entity(entity="ku_cell",
+  joins=[{"relation":"ku","alias":"K"},{"relation":"cellTimePeriod","alias":"P"}],
+  filters=[{"field":"group_company_id","op":"eq","value":<id>},
+           {"field":"K.name","op":"eq","value":"by_segment_financials"},
+           {"field":"P.duration","op":"eq","value":"year"}],
+  select=["id","P.end_date","cell_as_of_date","content"],
+  sort=[{"field":"cell_as_of_date","direction":"desc"}], limit=2)
+```
+The latest annual cell usually carries three years (Caterpillar FY2025: 2023–25). Save the rows to a file
+and run `python <skill_dir>/scripts/segments.py cells.json` to list the fields and segments, then
+`--revenue "<field>"` (plus `--units "<field>"` for a structured unit series) `--out segments.json`.
+Totals, consolidated and elimination rows are dropped; the model shows the gap to Distilla's revenue as
+"Other / eliminations" (intersegment sales). If the latest annual cell is older than the last actual
+year, add the cell for that year (or the full-year columns of the fourth-quarter cell) to the file.
+
 ## 6. Sanity checks before writing raw.json
 
 - **Consensus units vs actuals.** Compare FY1 consensus sales with the last actual year and with
@@ -205,6 +224,9 @@ Toyota Financial Services). If its assets are 10% or more of total assets, fill 
  "long_history": {"income_statement_sales": {...}, "income_statement_ebit_operating_income": {...}},
  "basis_gap": {"adjusted_by_year": {"2025": 0, "2024": 0, "2023": 0}, "source": ""},   // company's own operating profit; or {"none": true, "reason": ""}
  "continuing_history": {"income_statement_sales": {}, "income_statement_ebit_operating_income": {}, "source": ""},   // after a divestiture; omit otherwise
+ "segments": {"field":"","unit":"","revenue":{"<segment>":{"YYYY-MM-DD":0}},"units":{},"units_unit":"","source":"",
+              "drivers":{"<segment>":{"base":{"volume":{"2027":0.05},"price":{"2027":0.02}},"bull":{},"bear":{},
+                                      "basis":"<guidance / broker view (broker, title, date) / history>"}}},   // segments.py output + anchors
  "broker_discount_rates": [{"broker": "", "date": "YYYY-MM-DD", "rate": 0.0, "basis": "WACC | cost of equity"}],
  "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0,
                       "basis":"<vendor EV with or without a finance arm's debt, from the spot-check>"},

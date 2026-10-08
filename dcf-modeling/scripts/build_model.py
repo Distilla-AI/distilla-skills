@@ -379,14 +379,27 @@ def live(base_key, bull_key, bear_key):
                       f"{ref('Assumptions', bull_key, j)},{ref('Assumptions', bear_key, j)})")
 
 
-asb.hdr("Revenue growth")
-asb.line("g_base", "  Base", PCT, fc=inp(A["base"]["revenue_growth"]), key_fill=True,
-         note="Consensus-anchored years use Distilla consensus mean. " + " ".join(M.get("notes", [])))
-asb.line("g_bull", "  Bull", PCT, fc=inp(A["bull"]["revenue_growth"]), note="Consensus high estimates")
-asb.line("g_bear", "  Bear", PCT, fc=inp(A["bear"]["revenue_growth"]), note="Consensus low estimates")
-asb.line("g_live", "Revenue growth - active scenario", PCT, bold=True,
-         hist=lambda j: None if j == 0 else f"={ref('Income Statement', 'growth', j)}",
-         fc=live("g_base", "g_bull", "g_bear"))
+DRV = M.get("drivers") or {}
+DRIVERS = "Drivers"
+if DRV:
+    # Revenue comes from the Drivers tab; the scenario totals below are the draft, shown for reference.
+    asb.hdr("Revenue growth - set on the Drivers tab (segment volume and price); draft totals shown as memo")
+    asb.line("g_base", "  Base (memo: draft total)", PCT, fc=lambda j: f"={A['base']['revenue_growth'][fc_idx(j)]}",
+             note="Memo only. Change revenue on the Drivers tab: segment volume and price growth by scenario.")
+    asb.line("g_bull", "  Bull (memo: draft total)", PCT, fc=lambda j: f"={A['bull']['revenue_growth'][fc_idx(j)]}")
+    asb.line("g_bear", "  Bear (memo: draft total)", PCT, fc=lambda j: f"={A['bear']['revenue_growth'][fc_idx(j)]}")
+    asb.line("g_live", "Revenue growth - active scenario (from Drivers)", PCT, bold=True,
+             hist=lambda j: None if j == 0 else f"={ref('Income Statement', 'growth', j)}",
+             fc=lambda j: f"={ref('Income Statement', 'growth', j)}")
+else:
+    asb.hdr("Revenue growth")
+    asb.line("g_base", "  Base", PCT, fc=inp(A["base"]["revenue_growth"]), key_fill=True,
+             note="Consensus-anchored years use Distilla consensus mean. " + " ".join(M.get("notes", [])))
+    asb.line("g_bull", "  Bull", PCT, fc=inp(A["bull"]["revenue_growth"]), note="Consensus high estimates")
+    asb.line("g_bear", "  Bear", PCT, fc=inp(A["bear"]["revenue_growth"]), note="Consensus low estimates")
+    asb.line("g_live", "Revenue growth - active scenario", PCT, bold=True,
+             hist=lambda j: None if j == 0 else f"={ref('Income Statement', 'growth', j)}",
+             fc=live("g_base", "g_bull", "g_bear"))
 asb.hdr("EBIT margin")
 asb.line("m_base", "  Base", PCT, fc=inp(A["base"]["ebit_margin"]), key_fill=True)
 asb.line("m_bull", "  Bull", PCT, fc=inp(A["bull"]["ebit_margin"]))
@@ -480,6 +493,69 @@ if "sales_mean" in CS:
              fc=lambda j: (f"=IFERROR({ref('Income Statement', 'rev', j)}/{ref('Assumptions', 'c_sales_mean', j)}-1,0)"
                            if FP[fc_idx(j)] in CP else None))
 
+# ---------------------------------------------------------------- Drivers tab
+# Segment revenue = last year x (1 + volume) x (1 + price), or units x revenue per unit where a unit series
+# exists. Each driver has Base / Bull / Bear inputs and an active-scenario line; "Other / eliminations"
+# (intersegment sales, unallocated revenue) grows with the segment total. The total feeds the Model tab.
+if DRV:
+    drv = SB(DRIVERS, "Revenue drivers - segment volume x price (blue = input)")
+    SEGS, DH, DU = DRV["segments"], DRV["hist"], DRV.get("units") or {}
+    drv.text("Source: " + DRV.get("source", "") + (f" - field '{DRV['field']}'" if DRV.get("field") else ""))
+    drv.text("Draft: years with consensus (and revenue anchors) are calibrated so the segments sum to the scenario "
+             "total; later years run on the drivers. Change any blue cell - revenue follows.")
+
+    def d_live(stem):
+        return lambda j: (f"=CHOOSE({sref('scenario')},{ref(DRIVERS, stem + '_base', j)},"
+                          f"{ref(DRIVERS, stem + '_bull', j)},{ref(DRIVERS, stem + '_bear', j)})")
+
+    for k, s in enumerate(SEGS):
+        key = f"s{k}"
+        drv.hdr(s + (f"  - {DRV['basis'][s]}" if DRV.get("basis", {}).get(s) else ""))
+        for kind, lab in (("v", "Volume growth"), ("p", "Price growth")):
+            for sc in ("base", "bull", "bear"):
+                vals = DRV["scen"][sc][s]["volume" if kind == "v" else "price"]
+                drv.line(f"{key}_{kind}_{sc}", f"  {lab} - {sc.title()}", PCT,
+                         fc=(lambda vals: lambda j: vals[fc_idx(j)])(vals), key_fill=(sc == "base"))
+            drv.line(f"{key}_{kind}", f"{lab} - active scenario", PCT, bold=True, fc=d_live(f"{key}_{kind}"))
+        hv = DH[s]
+        if s in DU:
+            uv = DU[s]
+            drv.line(f"{key}_u", f"Units ({DRV.get('units_unit') or 'as reported'})", NUM1,
+                     hist=(lambda uv: lambda j: uv[j])(uv),
+                     fc=(lambda key: lambda j: f"={ref(DRIVERS, key + '_u', prev(j))}*(1+{ref(DRIVERS, key + '_v', j)})")(key))
+            drv.line(f"{key}_asp", "Revenue per unit (revenue / units, ‡)", PS,
+                     hist=(lambda key, uv: lambda j: (f"=IFERROR({ref(DRIVERS, key + '_r', j)}/{ref(DRIVERS, key + '_u', j)},0)"
+                                                      if uv[j] else None))(key, uv),
+                     fc=(lambda key: lambda j: f"={ref(DRIVERS, key + '_asp', prev(j))}*(1+{ref(DRIVERS, key + '_p', j)})")(key))
+            rfc = (lambda key: lambda j: f"={ref(DRIVERS, key + '_u', j)}*{ref(DRIVERS, key + '_asp', j)}")(key)
+        else:
+            rfc = (lambda key: lambda j: (f"={ref(DRIVERS, key + '_r', prev(j))}*(1+{ref(DRIVERS, key + '_v', j)})"
+                                          f"*(1+{ref(DRIVERS, key + '_p', j)})"))(key)
+        drv.line(f"{key}_r", f"Revenue - {s}", NUM, bold=True, hist=(lambda hv: lambda j: hv[j])(hv), fc=rfc)
+        drv.line(f"{key}_g", "  growth %", PCT,
+                 hist=(lambda key, hv: lambda j: (f"=IFERROR({ref(DRIVERS, key + '_r', j)}/{ref(DRIVERS, key + '_r', prev(j))}-1,0)"
+                                                  if j > 0 and hv[j] is not None and hv[j - 1] is not None else None))(key, hv),
+                 fc=(lambda key: lambda j: f"=IFERROR({ref(DRIVERS, key + '_r', j)}/{ref(DRIVERS, key + '_r', prev(j))}-1,0)")(key))
+    _complete = [all(DH[s][j] is not None for s in SEGS) for j in range(NH)]
+    seg_sum_f = lambda j: "=" + "+".join(ref(DRIVERS, f"s{k}_r", j) for k in range(len(SEGS)))  # noqa: E731
+    drv.hdr("Total revenue")
+    drv.line("seg_sum", "Segment total", NUM, bold=True, hist=lambda j: seg_sum_f(j) if _complete[j] else None, fc=seg_sum_f)
+    drv.line("other", "Other / eliminations (Distilla revenue - segment total)", NUM,
+             hist=lambda j: f"={raw('income_statement_sales', j)}-{ref(DRIVERS, 'seg_sum', j)}" if _complete[j] else None,
+             fc=lambda j: (f"={ref(DRIVERS, 'other', prev(j))}*IFERROR({ref(DRIVERS, 'seg_sum', j)}"
+                           f"/{ref(DRIVERS, 'seg_sum', prev(j))},1)"),
+             note="Intersegment sales and unallocated revenue. Forecast: grows with the segment total.")
+    drv.line("total", "Revenue (feeds the Model tab)", NUM, bold=True, top=True, key_fill=True,
+             hist=lambda j: f"={raw('income_statement_sales', j)}",
+             fc=lambda j: f"={ref(DRIVERS, 'seg_sum', j)}+{ref(DRIVERS, 'other', j)}")
+    drv.line("total_g", "  growth %", PCT, hist=lambda j: None if j == 0 else f"=IFERROR({ref(DRIVERS, 'total', j)}/{ref(DRIVERS, 'total', prev(j))}-1,0)",
+             fc=lambda j: f"=IFERROR({ref(DRIVERS, 'total', j)}/{ref(DRIVERS, 'total', prev(j))}-1,0)")
+    if "sales_mean" in M["consensus"]["series"]:
+        _cp = M["consensus"]["periods"]
+        drv.line("vs_cons", "Revenue vs consensus mean", PCT,
+                 fc=lambda j: (f"=IFERROR({ref(DRIVERS, 'total', j)}/{ref('Assumptions', 'c_sales_mean', j)}-1,0)"
+                               if FP[fc_idx(j)] in _cp else None))
+
 # ---------------------------------------------------------------- Model tab
 # Four logical statements share one physical sheet. History links to Raw Data line by line;
 # every subtotal is a real sum, and any gap to Distilla's reported subtotal is shown on an
@@ -494,7 +570,8 @@ link = lambda m: (lambda j: f"={raw(m, j)}")  # noqa: E731
 # ---------- Income statement
 isb = Section(model, IS, "INCOME STATEMENT")
 isb.line("rev", "Revenue", NUM, bold=True, hist=link('income_statement_sales'),
-         fc=lambda j: f"={ref(IS, 'rev', prev(j))}*(1+{ref('Assumptions', 'g_live', j)})")
+         fc=(lambda j: f"={ref(DRIVERS, 'total', j)}") if DRV else
+         (lambda j: f"={ref(IS, 'rev', prev(j))}*(1+{ref('Assumptions', 'g_live', j)})"))
 isb.line("growth", "  growth %", PCT, hist=lambda j: None if j == 0 else f"=IFERROR({ref(IS, 'rev', j)}/{ref(IS, 'rev', prev(j))}-1,0)",
          fc=lambda j: f"=IFERROR({ref(IS, 'rev', j)}/{ref(IS, 'rev', prev(j))}-1,0)")
 isb.line("cogs", "Cost of goods sold (incl. D&A)", NUM, hist=link('income_statement_cost_of_goods_sold_cogs_incl_d_and_a'),
@@ -1300,7 +1377,7 @@ fill_summary()
 
 wb = Workbook()
 wb.remove(wb.active)
-for sb in (sm, asb, model, dsb, sen, chk, rawsb):
+for sb in ((sm, asb, drv, model, dsb, sen, chk, rawsb) if DRV else (sm, asb, model, dsb, sen, chk, rawsb)):
     ws = write_sheet(wb, sb)
     if sb is dsb:
         for j in range(len(P)):
@@ -1315,5 +1392,7 @@ for sb in (sm, asb, model, dsb, sen, chk, rawsb):
 wb["Summary"].sheet_properties.tabColor = "1F3864"
 wb["Assumptions"].sheet_properties.tabColor = "FFC000"
 wb["Checks"].sheet_properties.tabColor = "70AD47"
+if DRV:
+    wb["Drivers"].sheet_properties.tabColor = "FFC000"
 wb.save(OUT)
 print(f"Wrote {OUT}: {NH} historical + {NF} forecast years, sheets: {', '.join(wb.sheetnames)}")
