@@ -221,8 +221,13 @@ separately; see the field notes.
 **Segments (Drivers tab).** Read the latest full-year `by_segment_financials` cell (it carries about three
 years; distilla_queries.md section 5c), save the rows, run `scripts/segments.py` on them to list the
 fields, then again with `--revenue "<field>"` (and `--units "<field>"` where Distilla reports a unit
-series, e.g. wholesale vehicles) and put the output in `raw.json["segments"]`. Keep a finance segment:
-its revenue is in consolidated revenue. Revenue is then built segment by segment; when segments are
+series, e.g. wholesale vehicles) and put the output in `raw.json["segments"]`. When the latest annual
+cell predates the last actual year, add the current year's quarterly / half-year cells: the script joins
+a year-to-date period with the quarter that completes it. Give `--revenue` twice for a label that changed
+between filings, `--rename` for segment names that differ between cells, `--exclude` for a wound-down
+segment (its history moves into other / eliminations). A unit year Distilla lacks comes from the annual
+report (`†`). Keep a finance segment — its revenue is in consolidated revenue — and list it in
+`segments.hold` so it keeps its own trend instead of absorbing the calibration. When segments are
 missing, too few or do not cover the last actual year, the script says so and keeps the single growth
 rate.
 
@@ -300,7 +305,9 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
    title and date — a broker view, never consensus), segment history. Record them in
    `raw.json["segments"]["drivers"]` by segment and scenario (volume and price by year, with a basis);
    in consensus years the other segments' volume is recalibrated so the total still matches consensus.
-   Where brokers disagree on a driver, that spread sets bull and bear.
+   Anchor price for every year guidance or a note gives it (an unanchored price is 0). When brokers state
+   views by product rather than by segment (DRAM / NAND / HBM bits and prices), say how you mapped them to
+   segments. Where brokers disagree on a driver, that spread sets bull and bear.
 Rerun prepare_inputs.py; evidence, anchors and return policy live in raw.json, so nothing is lost.
 
 ### 5. Checkpoint — stop and get confirmation
@@ -338,6 +345,8 @@ Edit `model_inputs.json` directly. Useful keys:
 - `wacc.rf|beta|erp|crp|kd_pretax|tax_rate|target_debt_weight` (+ `_source` strings)
 - `dcf.terminal_growth|exit_multiple|tv_method` (1 perpetuity, 2 exit)|`mid_year`
 - `include_lt_investments` (1/0)
+- `raw.json["assumption_overrides"]` takes one value for every year, a per-year list, or `{"2027": x}` for
+  single years (e.g. capex from guidance), and survives a re-draft
 - `drivers.scen.base|bull|bear.<segment>.volume|price` — per-year lists (or edit the Drivers tab directly);
   driver anchors that must survive a re-draft go in `raw.json["segments"]["drivers"]`
 

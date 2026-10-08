@@ -174,8 +174,11 @@ query_entity(entity="ku_cell",
            {"field":"K.name","op":"eq","value":"by_segment_financials"},
            {"field":"P.duration","op":"eq","value":"year"}],
   select=["id","P.end_date","cell_as_of_date","content"],
-  sort=[{"field":"cell_as_of_date","direction":"desc"}], limit=2)
+  sort=[{"field":"cell_as_of_date","direction":"desc"}], limit=1)
 ```
+Then, if that cell's year ends before the last actual fiscal year, the same query with
+`P.duration` IN `["quarter", "half", "nine_months"]` and `P.end_date` inside that year (the year-to-date and
+last-quarter cells). Older annual cells can carry a previous segment structure — leave them out.
 The latest annual cell usually carries three years (Caterpillar FY2025: 2023–25). Save the rows to a file
 and run `python <skill_dir>/scripts/segments.py cells.json` to list the fields and segments, then
 `--revenue "<field>"` (plus `--units "<field>"` for a structured unit series) `--out segments.json`.
@@ -212,7 +215,7 @@ year, add the cell for that year (or the full-year columns of the fourth-quarter
  "annual":    {"<metric>": {"<end_date>": "<value as delivered>"}},   // or the raw row list
  "consensus": {"sales_mean": {"<end_date>": "<value>"}, ...},          // or the raw row list
  "market": {"price":0,"price_date":"","price_currency":"","fx_reporting_per_price":1.0,
-            "fx_source":"","target_price":0,"vendor_market_cap_usd":null,"usd_per_price_currency":1.0},
+            "fx_source":"","target_price":0,"vendor_market_cap_usd":null /* USD m, as Distilla delivers */,"usd_per_price_currency":1.0},
  "bridge": {"as_of":"YYYY-MM-DD","source":"","cash":0,"lt_investments":0,"st_debt":0,
             "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0,
             "pension_deficit":null,"pension_source":"","basic_shares":null,
@@ -225,6 +228,7 @@ year, add the cell for that year (or the full-year columns of the fourth-quarter
  "basis_gap": {"adjusted_by_year": {"2025": 0, "2024": 0, "2023": 0}, "source": ""},   // company's own operating profit; or {"none": true, "reason": ""}
  "continuing_history": {"income_statement_sales": {}, "income_statement_ebit_operating_income": {}, "source": ""},   // after a divestiture; omit otherwise
  "segments": {"field":"","unit":"","revenue":{"<segment>":{"YYYY-MM-DD":0}},"units":{},"units_unit":"","source":"",
+              "hold":["<finance segment>"],   // keep their own trend, out of the calibration
               "drivers":{"<segment>":{"base":{"volume":{"2027":0.05},"price":{"2027":0.02}},"bull":{},"bear":{},
                                       "basis":"<guidance / broker view (broker, title, date) / history>"}}},   // segments.py output + anchors
  "broker_discount_rates": [{"broker": "", "date": "YYYY-MM-DD", "rate": 0.0, "basis": "WACC | cost of equity"}],

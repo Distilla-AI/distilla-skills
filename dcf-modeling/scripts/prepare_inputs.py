@@ -199,6 +199,9 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
         own[s] = clamp(((b / a) ** (1 / (i1 - i0)) - 1) if (a and b and a > 0 and b > 0) else 0.0, -0.15, 0.30)
 
     seg_anchor = SEG.get("drivers") or {}
+    # "hold": segments that keep their own trend and stay out of the calibration shift (a finance segment,
+    # a segment with its own guidance path) - the shift then falls on the others
+    hold = [s for s in (SEG.get("hold") or []) if s in hist]
 
     def anchor(s, sc, kind, i):
         d = ((seg_anchor.get(s) or {}).get(sc) or {}).get(kind) or {}
@@ -228,7 +231,7 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
                 S_target = T / (1 + O / S_prev) if S_prev else T
                 base_v = {s: (v_a[s] if v_a[s] is not None else own[s]) for s in names}
                 p_use = {s: (p_i[s] if p_i[s] is not None else 0.0) for s in names}
-                free = [s for s in names if v_a[s] is None]
+                free = [s for s in names if v_a[s] is None and s not in hold]
                 fixed = sum(R[s] * (1 + base_v[s]) * (1 + p_use[s]) for s in names)
                 denom = sum(R[s] * (1 + p_use[s]) for s in free)
                 delta = (S_target - fixed) / denom if denom else 0.0
@@ -258,6 +261,8 @@ def build_drivers(SEG, periods, rev, fc_periods, N, ncons, scen, g_term, rev_anc
         out["total_growth"][sc] = tot_g
         out["pinned"][sc] = pinned
         anchored = [s for s in names if (seg_anchor.get(s) or {}).get(sc)]
+        if hold:
+            out["basis"].update({s: (out["basis"].get(s) or "") + " [held at its own trend: out of the calibration]" for s in hold})
         out["basis_summary"][sc] = ("calibrated to the scenario total in pinned years; segment anchors for "
                                     + ", ".join(anchored) if anchored else
                                     "calibrated to the scenario total in pinned years; trailing segment growth, "
@@ -1055,10 +1060,19 @@ def main():
         flags[:] = [f for f in flags if not f.startswith("Effective tax rate")]
         flags.append(f"Tax rate set by the user: {raw['assumption_overrides']['tax_rate']:.1%}.")
     for k, v in (raw.get("assumption_overrides") or {}).items():
-        if isinstance(model["assumptions"].get(k), list):
-            model["assumptions"][k] = [v] * N
+        cur_ = model["assumptions"].get(k)
+        if isinstance(cur_, list):
+            if isinstance(v, dict):  # per year: {"2027": 0.20} keyed by fiscal-year label
+                for y, x in v.items():
+                    for i_, q in enumerate(fc_periods):
+                        if q[:4] == str(y)[:4]:
+                            cur_[i_] = x
+            elif isinstance(v, list):
+                model["assumptions"][k] = (list(v) + [v[-1]] * N)[:N]
+            else:
+                model["assumptions"][k] = [v] * N
         if k == "tax_rate":
-            model["wacc"]["tax_rate"] = v
+            model["wacc"]["tax_rate"] = v if not isinstance(v, (dict, list)) else model["wacc"]["tax_rate"]
     json.dump(model, open(out_path, "w"), indent=1, default=str)
     tax_eff = model["wacc"]["tax_rate"]  # the printout shows the values after user overrides
 

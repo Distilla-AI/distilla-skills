@@ -4,14 +4,19 @@ segments.py - turn Distilla `by_segment_financials` cells into a clean annual se
 
 Usage:
     python segments.py cells.json                      # list the fields, segments and years found
-    python segments.py cells.json --revenue "Sales and revenues" [--units "Wholesale vehicle sales"]
-                       [--exclude "Financial Products Segment"] [--out segments.json]
+    python segments.py cells.json --revenue "Sales and revenues" [--revenue "Total sales and revenues"]
+                       [--units "Wholesale vehicle sales"] [--exclude "Cruise"] [--rename "CMBU=Cloud Memory"]
+                       [--out segments.json]
 
 cells.json is the `query_entity` result on `ku_cell` for `by_segment_financials` (the rows, or the whole
 result with "rows"); each row's `content` is a list of {segment, field_name, value, unit, time_period}.
 
 Only full-year periods are kept ("YYYY-MM-DD to YYYY-MM-DD" spanning about a year): the cells mix
-year-to-date quarters and halves, and some are mislabelled. Total / consolidated / elimination rows are
+year-to-date quarters and halves, and some are mislabelled. Where a year has no full-year row, a
+year-to-date row plus the quarter that completes it (back to back, together about a year) is joined into
+one (Micron FY2026 = 9M YTD + Q4); the output says which years were joined. A field given more than once
+(--revenue A --revenue B) merges label variants across filings, the first label winning per segment-year;
+--rename maps segment names that differ between cells. Total / consolidated / elimination rows are
 dropped (the model rebuilds the total and shows the gap to Distilla's revenue as "Other / eliminations").
 When two cells give the same segment-year, the cell published later wins.
 
@@ -27,7 +32,7 @@ from collections import defaultdict
 
 TOTAL_LIKE = re.compile(r"\b(total|consolidated|reportable segments|elimination|reconcil|corporate|intersegment|"
                         r"inter-segment|adjustment)\b", re.I)
-REVENUE_LIKE = re.compile(r"(sales|revenue)", re.I)
+REVENUE_LIKE = re.compile(r"^(?!.*\bcost of\b)(?!.*/cost\b).*(sales|revenue)", re.I)
 
 
 def num(v):
@@ -40,6 +45,12 @@ def num(v):
         return float(s)
     except ValueError:
         return None
+
+
+def span(tp):
+    """'2025-01-01 to 2025-12-31' -> (start, end) dates, else None."""
+    m = re.match(r"\s*(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})\s*$", str(tp or ""))
+    return tuple(dt.date.fromisoformat(x) for x in m.groups()) if m else None
 
 
 def full_year_end(tp):
@@ -72,8 +83,9 @@ def load(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cells")
-    ap.add_argument("--revenue")
-    ap.add_argument("--units")
+    ap.add_argument("--revenue", action="append")
+    ap.add_argument("--units", action="append")
+    ap.add_argument("--rename", action="append", default=[], help="OLD=NEW segment name")
     ap.add_argument("--exclude", action="append", default=[])
     ap.add_argument("--out")
     a = ap.parse_args()
@@ -81,22 +93,40 @@ def main():
     cells = load(a.cells)
     if not cells:
         sys.exit("No by_segment_financials content found in " + a.cells)
-    # (field, segment, end) -> (as_of, value, unit); later cells win
-    best = {}
+    ren = dict(r.split("=", 1) for r in a.rename if "=" in r)
+    # (field, segment, end) -> (as_of, value, unit); later cells win. Partial spans kept for joining.
+    best, part = {}, {}
     fields = defaultdict(set)
     for as_of, content in cells:
         for row in content:
             if not isinstance(row, dict):
                 continue
-            end = full_year_end(row.get("time_period"))
             seg, field = str(row.get("segment") or "").strip(), str(row.get("field_name") or "").strip()
+            seg = ren.get(seg, seg)
             v = num(row.get("value"))
-            if not end or not seg or not field or v is None:
+            sp = span(row.get("time_period"))
+            if not sp or not seg or not field or v is None:
                 continue
-            fields[field].add(seg)
-            k = (field, seg, end)
-            if k not in best or as_of >= best[k][0]:
-                best[k] = (as_of, v, str(row.get("unit") or ""))
+            end = full_year_end(row.get("time_period"))
+            if end:
+                fields[field].add(seg)
+                k = (field, seg, end)
+                if k not in best or as_of >= best[k][0]:
+                    best[k] = (as_of, v, str(row.get("unit") or ""))
+            else:
+                k = (field, seg, sp)
+                if k not in part or as_of >= part[k][0]:
+                    part[k] = (as_of, v, str(row.get("unit") or ""))
+    # join a year-to-date span and the quarter that completes it into one full year (if none exists)
+    joined = set()
+    for (f, s, (a1, b1)), (as1, v1, u1) in list(part.items()):
+        for (f2, s2, (a2, b2)), (as2, v2, u2) in part.items():
+            if f2 != f or s2 != s or a2 != b1 + dt.timedelta(days=1):
+                continue
+            if 330 <= (b2 - a1).days <= 380 and (f, s, b2.isoformat()) not in best:
+                best[(f, s, b2.isoformat())] = (max(as1, as2), v1 + v2, u1 or u2)
+                fields[f].add(s)
+                joined.add(b2.isoformat()[:4])
 
     if not a.revenue:
         print("Fields with full-year values (segments in each):")
@@ -109,29 +139,37 @@ def main():
         print("\nRe-run with --revenue \"<field>\" (and --units \"<field>\" where a unit series exists).")
         return
 
-    def table(field):
+    def table(field_list):
         out, unit = defaultdict(dict), ""
-        for (f, seg, end), (_, v, u) in best.items():
-            if f != field or TOTAL_LIKE.search(seg) or seg in a.exclude:
-                continue
-            out[seg][end] = v
-            unit = unit or u
+        for field in field_list:  # first label wins per segment-year
+            for (f, seg, end), (_, v, u) in best.items():
+                if f != field or TOTAL_LIKE.search(seg) or seg in a.exclude or end in out[seg]:
+                    continue
+                out[seg][end] = v
+                unit = unit or u
         return {s: dict(sorted(d.items())) for s, d in sorted(out.items())}, unit
 
     rev, unit = table(a.revenue)
     if not rev:
-        sys.exit(f"No segment rows for field {a.revenue!r}")
-    res = {"field": a.revenue, "unit": unit, "revenue": rev,
-           "source": "Distilla ku_cell by_segment_financials (full-year periods)"}
+        sys.exit(f"No segment rows for field(s) {a.revenue!r}")
+    res = {"field": " | ".join(a.revenue), "unit": unit, "revenue": rev,
+           "source": "Distilla ku_cell by_segment_financials (full-year periods"
+                     + (f"; {', '.join(sorted(joined))} joined from year-to-date + quarter" if joined else "") + ")"}
     if a.units:
         units, uunit = table(a.units)
-        res.update({"units_field": a.units, "units_unit": uunit, "units": units})
+        res.update({"units_field": " | ".join(a.units), "units_unit": uunit, "units": units})
     years = sorted({e for d in rev.values() for e in d})
     print(f"Segments ({len(rev)}): {', '.join(rev)}")
     print(f"Years: {', '.join(y[:4] for y in years)}   unit: {unit}")
     for y in years:
         tot = sum(d.get(y, 0) for d in rev.values())
         print(f"  {y[:4]}: segment sum {tot:,.0f}" + ("" if all(y in d for d in rev.values()) else "  (some segments missing)"))
+    if a.units:
+        for s, d in res["units"].items():
+            per = "; ".join(f"{y[:4]}: {d[y]:,.1f} units, {rev[s][y] / d[y]:,.2f} revenue/unit" for y in d if rev.get(s, {}).get(y) and d[y])
+            print(f"  units {s}: {per}")
+    if joined:
+        print(f"Joined from year-to-date + quarter: {', '.join(sorted(joined))}")
     if a.exclude:
         print(f"Excluded: {', '.join(a.exclude)}")
     if a.out:

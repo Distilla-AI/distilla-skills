@@ -132,7 +132,8 @@ Raise only the ones that apply. Lead with the one that moves value most.
 15. **Segment drivers.** Say which drivers carry evidence and which are only calibrated: the common
    volume shift is a mechanical allocation, not a view (Caterpillar FY26: every segment +12–24% to reach
    consensus). Name the segment that moves value most and its basis; flag other / eliminations above 10%
-   of revenue.
+   of revenue. Say which segments are held at their own trend (a finance segment), and point out a
+   calibrated volume that swings against an anchored year (GM International: +12.9% anchored, then −9.5%).
 
 ## WACC sourcing order (user choice: web search, then defaults)
 
