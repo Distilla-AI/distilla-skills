@@ -8,7 +8,11 @@ interface:
     intrinsic or fair value, work out what a stock is worth, or asks for a financial
     model or valuation model of a listed company, even if they don't say "DCF" or
     "Distilla". Also use it for bull/bear/base scenario valuations, WACC-and-terminal-growth
-    sensitivity tables, or updating a model built earlier with this skill.
+    sensitivity tables, or updating a model built earlier with this skill. Do NOT
+    use for a first-pass screen with a verdict (initial-screen), why a multiple re-rated
+    (valuation-compression-recovery), a peer multiple comparison (peer-benchmarking),
+    a long/short pitch with catalyst and R/R (long-short-ideas), or an investment
+    committee review (fundamental-guru).
 policy:
   products:
   - chatgpt
