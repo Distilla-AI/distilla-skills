@@ -122,7 +122,18 @@ query_entity(entity="consensus_data_point",
   sort=[{"field":"consensus_date","direction":"desc"}], limit=60)
 ```
 Keep only the latest `consensus_date` per (metric, period) — prepare_inputs.py does this if you
-pass rows. `consensus_date` is the snapshot vintage, never the fiscal period.
+pass rows. `consensus_date` is the snapshot vintage, never the fiscal period. With the pivoted form, record
+the snapshot's date in `consensus_as_of`; the script flags a snapshot older than 30 days or dated before the
+latest results (estimates may not reflect them yet).
+
+**Latest results date** (the recency cutoff for broker numbers and consensus):
+```
+query_entity(entity="earnings_calendar", joins=[{"relation":"company","alias":"CO"}],
+  filters=[{"field":"CO.symbol","op":"eq","value":"<ticker>"},
+           {"field":"earnings_date","op":"lte","value":"<valuation date>"}],
+  select=["earnings_date"], sort=[{"field":"earnings_date","direction":"desc"}], limit=1)
+```
+Record it in `market.last_results_date` (Caterpillar, 7 Oct 2026: 2026-08-04).
 
 ## 5. Share price and target
 
@@ -236,11 +247,12 @@ year, add the cell for that year (or the full-year columns of the fourth-quarter
  "company": {"name":"...","ticker":"...","distilla_company_id":0,"hq_country":"US|KR|JP|CN|HK",
              "sector":"<Distilla sector name>","reporting_currency":"USD","units":"m"},
  "valuation_date": "YYYY-MM-DD",
+ "consensus_as_of": "YYYY-MM-DD",   // snapshot date of the consensus used (the rows' consensus_date)
  "annual":    {"<metric>": {"<end_date>": "<value as delivered>"}},   // or the raw row list
  "consensus": {"sales_mean": {"<end_date>": "<value>"}, ...},          // or the raw row list
  "market": {"price":0,"price_date":"","price_currency":"","fx_reporting_per_price":1.0,
             "fx_source":"","target_price":0,"vendor_market_cap_usd":null /* USD; full USD is detected and scaled to millions */,"usd_per_price_currency":1.0,
-            "splits_after_bridge":[]},
+            "splits_after_bridge":[],"last_results_date":"YYYY-MM-DD"},   // earnings_calendar
  "bridge": {"as_of":"YYYY-MM-DD","source":"","cash":0,"lt_investments":0,"st_debt":0,
             "lt_debt":0,"leases":0,"leases_source":"","minority_interest":0,"diluted_shares":0,
             "pension_deficit":null,"pension_source":"","basic_shares":null,
@@ -261,7 +273,8 @@ year, add the cell for that year (or the full-year columns of the fourth-quarter
               "drivers":{"<segment>":{"base":{"volume":{"2027":0.05},"price":{"2027":0.02},"margin":{"2026":0.20,"2029+":0.18}},
                                       "bull":{},"bear":{},"all":{},  // "all" = every scenario (a scenario's own entry wins);
                                       // "2029+" = that year onward; "market" + "share" instead of "volume"
-                                      "basis":"<guidance / broker view (broker, title, date) / history>"}}},   // segments.py output + anchors
+                                      "basis":"<guidance / broker view (broker, title, date) / history>",
+                                      "as_of":"YYYY-MM-DD"}}},   // as_of = date of the newest source; segments.py output + anchors
  "broker_discount_rates": [{"broker": "", "date": "YYYY-MM-DD", "rate": 0.0, "basis": "WACC | cost of equity"}],
  "multiple_history": {"type":"NTM_Ev_Ebitda_Med_W","from":"YYYY-MM-DD","avg":0,"min":0,"max":0,"n":0,
                       "basis":"<vendor EV with or without a finance arm's debt, from the spot-check>"},

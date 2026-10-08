@@ -308,7 +308,12 @@ the value (post-consensus EBIT margin and growth, sometimes capex), follow
    ticker); each entry of the list's answer text names its broker (a `broker:` line — the `sources`
    array does not), so group by that and read each broker's most relevant recent note (else its
    latest) with `get_library_document` (rating, target price, date — all brokers, never a sample); a
-   list of exactly 100 or 200 entries is capped (rule 3a widening applies). Record any discount rate
+   list of exactly 100 or 200 entries is capped (rule 3a widening applies). **Numbers** taken from a
+   broker (discount rate, segment volumes, prices, margins) come from that broker's latest note, and from
+   one dated after the company's latest results (`market.last_results_date`) when it exists; read that
+   note too if the most relevant one is older. An older number is kept only when no later note gives it —
+   the script marks it pre-results and leaves pre-results discount rates out of the median when current
+   ones exist. Every anchor, company-level and segment, carries `as_of` (the date of its newest source). Record any discount rate
    a note states (WACC or cost of equity) in `raw.json["broker_discount_rates"]`; then 2–3 *neutral* `search_public_library` `mode="synthesize"` questions ("when
    does the shortage end?", not "confirm the margin"). Add the own-history multiple for the
    terminal cross-check: `aggregate_entity` on `valuation_multiple`, type `NTM_Ev_Ebitda_Med_W`,

@@ -44,7 +44,9 @@ search_public_library(query="<company>", mode="list", date_range="90d", doc_type
 get_library_document(document_id=<id>)   # summary: rating, target price, change old -> new, date
 ```
 Fewer than 3 brokers → the same list once at `date_range="180d"`. The `Brokers:` line in the
-delivery reports the counts and the notes read.
+delivery reports the counts and the notes read. **Recency:** a broker's numbers come from its latest note
+dated after the latest results (`market.last_results_date`) when one exists; a pre-results number is used
+only when no later note gives it, and is labelled pre-results. Record `as_of` on every anchor.
 
 **search_public_library** `mode="synthesize"`: write one specific question per call, naming the company, the year and
 the assumption. For example: "Samsung Electronics 2026 memory capex outlook HBM pricing guidance".
@@ -134,7 +136,7 @@ otherwise it is decoration. For each value-driving assumption:
 Anchors go in `raw.json`:
 ```json
 "anchors": {
-  "ebit_margin": {"base": {"hold_until": "2028-12-31", "reach_by": "2031-12-31", "terminal": 0.242,
+  "ebit_margin": {"base": {"hold_until": "2028-12-31", "reach_by": "2031-12-31", "terminal": 0.242, "as_of": "2026-09-30",
                            "basis_type": "history + evidence", "basis": "<why this level and timing, with sources>"}},
   "revenue_growth": {"bear": {"overrides": {"2029-12-31": -0.14, "2030-12-31": 0.02},
                               "basis_type": "history + evidence", "basis": "<...>"}}}

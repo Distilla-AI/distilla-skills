@@ -596,6 +596,40 @@ def main():
     # ---------- WACC inputs (live values from raw['wacc'] if the assistant found them)
     W = raw.get("wacc", {})
     mkt = raw["market"]
+    # ---------- recency: broker numbers and consensus are checked against the latest results release
+    # (market.last_results_date, from Distilla earnings_calendar) and the valuation date. A note written
+    # before the company reported can be 60 days old and still out of date.
+    val_d = dt.date.fromisoformat(str(raw.get("valuation_date") or dt.date.today().isoformat())[:10])
+    lr_s = str(mkt.get("last_results_date") or "")[:10]
+    lr_d = dt.date.fromisoformat(lr_s) if lr_s else None
+    if not lr_d:
+        flags.append("RECENCY: market.last_results_date not recorded (Distilla earnings_calendar) - broker numbers and "
+                     "consensus were not checked against the latest results.")
+
+    def stale(d_):
+        """'' when current, else why a dated broker number / anchor / snapshot may be out of date."""
+        try:
+            d0 = dt.date.fromisoformat(str(d_)[:10])
+        except ValueError:
+            return "undated"
+        if lr_d and d0 < lr_d:
+            return f"pre-results ({d0.isoformat()}, before the {lr_d.isoformat()} results)"
+        if (val_d - d0).days > 180:
+            return f"over 180 days old ({d0.isoformat()})"
+        return ""
+    ca = raw.get("consensus_as_of")
+    if not ca and isinstance(raw.get("consensus"), list):
+        ca = max((str(r.get("consensus_date"))[:10] for r in raw["consensus"] if r.get("consensus_date")), default=None)
+    if not ca:
+        flags.append("RECENCY: consensus_as_of not recorded - the consensus snapshot's date was not checked.")
+    else:
+        why = stale(ca)
+        days_ = (val_d - dt.date.fromisoformat(str(ca)[:10])).days if why != "undated" else None
+        if why.startswith("pre-results"):
+            flags.append(f"RECENCY: the consensus snapshot ({ca}) predates the latest results ({lr_s}) - estimates may not "
+                         "reflect them. Look for a later snapshot; else say so at the checkpoint.")
+        elif why or (days_ is not None and days_ > 30):
+            flags.append(f"RECENCY: the consensus snapshot is dated {ca}, {days_} days before the valuation date.")
     bridge = raw["bridge"]
     wacc = {}
 
@@ -799,14 +833,26 @@ def main():
     wacc["target_debt_weight"] = W.get("target_debt_weight")  # None = use current market weights
     # B: discount rates the brokers' notes state, beside the model's. The user picks; nothing changes here.
     bdr = [b for b in (raw.get("broker_discount_rates") or []) if b.get("rate") is not None]
+    for b in bdr:
+        b["recency"] = stale(b.get("date"))
+    cur_ = [b for b in bdr if not b["recency"]]
+    if bdr and len(cur_) < len(bdr):
+        old_ = "; ".join(f"{b.get('broker')} {b['recency']}" for b in bdr if b["recency"])
+        flags.append(f"RECENCY: broker discount rates {old_}. " + (
+            "The median uses only the current ones; the old ones stay listed." if cur_ else
+            "No current rate exists, so the median uses these - say so at the checkpoint."))
+        if cur_:
+            bdr = cur_ + [dict(b, _memo=True) for b in bdr if b["recency"]]
     ke_model = wacc["rf"] + wacc["beta"] * wacc["erp"] + wacc["crp"]
     if bdr:
         def _med(xs):
             xs = sorted(xs)
             return xs[len(xs) // 2] if len(xs) % 2 else (xs[len(xs) // 2 - 1] + xs[len(xs) // 2]) / 2
-        bw = [float(b["rate"]) for b in bdr if str(b.get("basis", "WACC")).upper() == "WACC"]
-        bk = [float(b["rate"]) for b in bdr if str(b.get("basis", "")).lower().startswith("cost")]
-        wacc["broker_rates"] = "; ".join(f"{b.get('broker')} {float(b['rate']):.1%} {b.get('basis', 'WACC')} ({b.get('date', '')})" for b in bdr)
+        bw = [float(b["rate"]) for b in bdr if str(b.get("basis", "WACC")).upper() == "WACC" and not b.get("_memo")]
+        bk = [float(b["rate"]) for b in bdr if str(b.get("basis", "")).lower().startswith("cost") and not b.get("_memo")]
+        wacc["broker_rates"] = "; ".join(f"{b.get('broker')} {float(b['rate']):.1%} {b.get('basis', 'WACC')} ({b.get('date', '')}"
+                                         + (f"; {b['recency']}, not in the median" if b.get("_memo") else
+                                            f"; {b['recency']}" if b.get("recency") else "") + ")" for b in bdr)
         wacc["broker_wacc_median"] = round(_med(bw), 4) if bw else None
         if bk and not bw:  # a cost of equity only: compare like with like, and price it at today's weights
             wacc["broker_ke_median"] = round(_med(bk), 4)
@@ -962,6 +1008,21 @@ def main():
     # references/evidence_guide.md). An anchor replaces a mechanical path only where the user or
     # the evidence gives a reason. Every key number gets a basis label so nothing is dressed up.
     anchors = raw.get("anchors") or {}
+    dated, undated = [], []
+    for kind, by_sc in anchors.items():
+        for sc_, a_ in (by_sc or {}).items():
+            if isinstance(a_, dict):
+                (dated if a_.get("as_of") else undated).append((f"{kind} {sc_}", a_.get("as_of")))
+    for line_, d_ in ((raw.get("segments") or {}).get("drivers") or {}).items():
+        if any(k_ in d_ for k_ in ("base", "bull", "bear", "all")):
+            (dated if d_.get("as_of") else undated).append((f"segment '{line_}'", d_.get("as_of")))
+    old_a = [f"{n_} {stale(d_)}" for n_, d_ in dated if stale(d_)]
+    if old_a:
+        flags.append("RECENCY: anchors from sources that may be out of date - " + "; ".join(old_a)
+                     + ". Use the source's latest view after the results, or say why the older one stands.")
+    if undated:
+        flags.append("RECENCY: anchors without as_of (the date of their newest source): " + ", ".join(n_ for n_, _ in undated)
+                     + " - add it so recency can be checked.")
     basis = {"revenue_growth": {}, "ebit_margin": {}}
     for sc in ("base", "bull", "bear"):
         src = {"base": "consensus mean", "bull": "consensus high", "bear": "consensus low"}[sc]
